@@ -1,0 +1,50 @@
+# .github/workflows/cron-publish.yml
+# Runs every 10 minutes and hits the /api/cron/trigger endpoint
+# to publish any scheduled posts that are due.
+#
+# REQUIRED SECRETS (set in GitHub repo → Settings → Secrets):
+#   - CRON_SECRET:  same value as CRON_SECRET in your .env / Vercel env
+#   - APP_BASE_URL: your Vercel deployment URL (e.g. https://linkedout-pro.vercel.app)
+
+name: Publish Scheduled Posts
+
+on:
+  schedule:
+    # Every 10 minutes
+    - cron: '*/10 * * * *'
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger post publisher
+        run: |
+          echo "🔔 Triggering cron at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/trigger")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          echo "Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "❌ Cron trigger failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          
+          echo "✅ Cron completed successfully"
+
+      - name: Health check
+        run: |
+          curl -sf "${{ secrets.APP_BASE_URL }}/api/cron/health" \
+            && echo "✅ App is healthy" \
+            || echo "⚠️ Health check failed (non-critical)"

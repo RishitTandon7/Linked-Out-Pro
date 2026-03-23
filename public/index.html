@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LinkedOut Pro — Subtle Authority</title>
+  <meta name="description" content="A high-performance engine for executive visibility. Transmute imagery into calibrated professional leverage without the noise." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/landing.css" />
+</head>
+<body>
+
+  <!-- ======== BOOT SCREEN ======== -->
+  <div id="bootScreen">
+    <div class="boot-content">
+      <div class="boot-logo">
+        <div style="background:var(--primary);color:#fff;border-radius:6px;font-weight:900;font-size:20px;padding:4px 8px;line-height:1;letter-spacing:-0.5px">out</div>
+      </div>
+      <div class="boot-progress-wrap">
+        <div class="boot-progress-bar">
+          <div class="boot-progress-fill" id="bootFill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== MAIN PAGE ======== -->
+  <div id="mainPage" class="hidden">
+    
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-container">
+        <div class="nav-left">
+          <div class="logo group">
+            <div style="background:var(--primary);color:#fff;border-radius:4px;font-weight:900;font-size:14px;padding:3px 6px;line-height:1;margin-right:8px;letter-spacing:-0.5px">out</div>
+            <span class="logo-text">LinkedOut <span class="logo-pro">Pro</span></span>
+          </div>
+          
+          <div class="nav-links">
+            <a href="#" class="nav-link active">Studio</a>
+            <a href="#" class="nav-link">Aura Feed</a>
+            <a href="#" class="nav-link">Analytics</a>
+            <a href="#" class="nav-link">Vault</a>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <button class="nav-icon-btn">
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </button>
+          <div class="nav-divider"></div>
+          <div class="user-pill">
+            <div class="user-meta">
+              <p class="user-name">Alex Rivera</p>
+              <p class="user-tier">Founders Tier</p>
+            </div>
+            <div class="user-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop" alt="Profile" class="user-avatar">
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="content-grid">
+        
+        <!-- Left Column: Main Forge -->
+        <div class="forge-column">
+          <section class="hero-section">
+            <div class="status-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="status-icon"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+              <span class="status-text">Real-time Network Sync: Optimized</span>
+            </div>
+            <h1 class="hero-title">Subtle <br /> Authority.</h1>
+            <p class="hero-desc">
+              A high-performance engine for executive visibility. Transmute imagery into calibrated professional leverage without the noise.
+            </p>
+          </section>
+
+          <section class="forge-container">
+            <div class="forge-grid">
+              
+              <!-- Persona Selection -->
+              <div class="persona-section">
+                <label class="section-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Neural Persona
+                </label>
+                <div class="persona-list">
+                  <button class="persona-item active" data-persona="Executive">
+                    <div class="persona-info">
+                      <div class="persona-icon-box">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                      </div>
+                      <div class="persona-text">
+                        <p class="persona-name">Executive</p>
+                        <p class="persona-desc">Strategic & Authoritative</p>
+                      </div>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="persona-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                  
+                  <button class="persona-item" data-persona="Visionary">
+                    <div class="persona-info">
+                      <div class="persona-icon-box">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                      </div>
+                      <div class="persona-text">
+                        <p class="persona-name">Visionary</p>
+                        <p class="persona-desc">Future-Focused & Abstract</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button class="persona-item" data-persona="Disruptor">
+                    <div class="persona-info">
+                      <div class="persona-icon-box">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      </div>
+                      <div class="persona-text">
+                        <p class="persona-name">Disruptor</p>
+                        <p class="persona-desc">Bold & High-Impact</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Upload Zone -->
+              <div class="upload-section">
+                <label class="section-label">
+                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                   Asset Ingestion
+                </label>
+                <div class="ingest-box" onclick="document.getElementById('fileInput').click()">
+                   <div class="ingest-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                   </div>
+                   <p class="ingest-text">Drop Visuals</p>
+                   <p class="ingest-subtext">Raw imagery only • No manual prompts</p>
+                   <input type="file" id="fileInput" hidden>
+                </div>
+              </div>
+            </div>
+
+            <a href="/api/auth/linkedin" class="forge-btn">
+              Forge Manifest 
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </a>
+          </section>
+
+          <footer class="indicator-footer">
+             <div class="indicator">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="indicator-icon"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span class="indicator-label">Linguistic Map</span>
+             </div>
+             <div class="indicator">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="indicator-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <span class="indicator-label">Network Privacy</span>
+             </div>
+             <div class="indicator">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="indicator-icon"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span class="indicator-label">Algorithm Drift</span>
+             </div>
+          </footer>
+
+          <div id="errorBanner" class="error-banner hidden"></div>
+        </div>
+
+        <!-- Right Column: Stats & Sidebar -->
+        <aside class="sidebar-column">
+          
+          <div class="stats-card">
+            <div class="stats-header">
+              <h3 class="stats-label">Network Authority</h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0077B5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            
+            <div class="stats-body">
+              <div class="score-row">
+                <p class="score-num">98.4</p>
+                <p class="score-sub">Executive Grade Momentum</p>
+              </div>
+              
+              <div class="progress-section">
+                <div class="progress-label">
+                  <span>Viral Capacity</span>
+                  <span class="progress-percent">92%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width: 92%;"></div>
+                </div>
+              </div>
+
+              <div class="stats-grid">
+                <div class="mini-stat">
+                  <p class="mini-stat-label">Growth</p>
+                  <p class="mini-stat-val">+12%</p>
+                </div>
+                <div class="mini-stat">
+                  <p class="mini-stat-label">Aura</p>
+                  <p class="mini-stat-val">Max</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="vault-card">
+             <div class="vault-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+             </div>
+             <div class="vault-text">
+                <p class="vault-title">Obsidian Vault</p>
+                <p class="vault-sub">E2E Encrypted Generation</p>
+             </div>
+          </div>
+
+          <div class="artifacts-section">
+            <div class="artifacts-header">
+              <h3 class="artifacts-label">Recent Artifacts</h3>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="add-artifact-icon"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </div>
+            <div class="artifacts-list">
+              <div class="artifact-item">
+                <span class="artifact-name">Executive Silence</span>
+                <span class="artifact-time">2H AGO</span>
+              </div>
+              <div class="artifact-item">
+                <span class="artifact-name">Velocity Manifest</span>
+                <span class="artifact-time">1D AGO</span>
+              </div>
+              <div class="artifact-item">
+                <span class="artifact-name">Disruptor Series</span>
+                <span class="artifact-time">3D AGO</span>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+      </div>
+    </main>
+
+    <!-- Floating Taskbar -->
+    <nav class="taskbar">
+      <div class="taskbar-inner">
+        <a href="/api/auth/linkedin" class="taskbar-btn primary">
+           <div style="background:var(--bg);color:var(--white);border-radius:2px;font-weight:900;font-size:10px;padding:2px 4px;line-height:1;letter-spacing:-0.5px">out</div>
+          <span>Link_In</span>
+        </a>
+        
+        <div class="taskbar-divider"></div>
+        
+        <div class="taskbar-icons">
+          <button class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></button>
+          <button class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></button>
+          <button class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></button>
+          <button class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></button>
+        </div>
+
+        <div class="taskbar-status">
+          <div class="sync-status">
+            <div class="sync-dot"></div>
+            <span class="sync-label">Sync: Realtime</span>
+          </div>
+          <div class="taskbar-time" id="taskbarTime">00:00</div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#0077B5">
+          <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
+          <circle cx="4" cy="4" r="2" fill="#0077B5" />
+        </svg>
+        <span class="footer-logo-text">LinkedOut Pro Systems</span>
+      </div>
+      <div class="footer-links">
+        <a href="#">Security</a>
+        <a href="#">Privacy</a>
+        <a href="#">API</a>
+      </div>
+      <p class="copyright">© 2026 Obsidian Labs</p>
+    </footer>
+
+  </div><!-- end mainPage -->
+
+  <script>
+    // ---- Boot Loader ----
+    const bootInterval = setInterval(() => {
+      const fill = document.getElementById('bootFill');
+      let w = parseInt(fill.style.width || 0);
+      if (w >= 100) {
+        clearInterval(bootInterval);
+        setTimeout(() => {
+          document.getElementById('bootScreen').style.opacity = '0';
+          setTimeout(() => {
+            document.getElementById('bootScreen').style.display = 'none';
+            document.getElementById('mainPage').classList.remove('hidden');
+          }, 600);
+        }, 300);
+        return;
+      }
+      fill.style.width = (w + 2) + '%';
+    }, 15);
+
+    // ---- Clock ----
+    function updateTime() {
+      const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('taskbarTime').textContent = t;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // ---- Interactions ----
+    document.querySelectorAll('.persona-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.persona-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // ---- Error Banner ----
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err) {
+      const banner = document.getElementById('errorBanner');
+      banner.textContent = decodeURIComponent(err);
+      banner.classList.remove('hidden');
+    }
+
+    // ---- Redirect if logged in ----
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.user) window.location.href = '/dashboard'; });
+  </script>
+</body>
+</html>

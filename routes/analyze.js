@@ -1,0 +1,165 @@
+// routes/analyze.js — Image upload + Gemini analysis + post generation
+const express  = require('express');
+const multer   = require('multer');
+const path     = require('path');
+const fs       = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const { requireAuth } = require('../middleware/auth');
+const { generateLinkedInPost, suggestSchedule } = require('../services/gemini');
+const { run, get, all } = require('../database/db');
+const { getNextPostingSlots } = require('../services/scheduler');
+
+const router = express.Router();
+
+// ---- Multer storage config ----
+const UPLOADS_DIR = process.env.UPLOADS_DIR || './uploads';
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename:    (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '10') * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  }
+});
+
+// ---- POST /api/analyze/generate ----
+// Upload images (optional), analyze with Gemini, return generated post
+router.post('/generate', requireAuth, upload.array('images', 10), async (req, res) => {
+  const { context = '', intent = 'achievement', tone = 'professional' } = req.body;
+
+  // Images are optional — allow text-only generation
+  const hasImages = req.files && req.files.length > 0;
+
+  try {
+    const imageFiles = hasImages ? req.files.map(f => ({ path: f.path, mimetype: f.mimetype })) : [];
+    const result     = await generateLinkedInPost(imageFiles, context, intent, tone);
+
+    // Save as draft post in DB
+    const postId  = uuidv4();
+    const now     = Math.floor(Date.now() / 1000);
+
+    const { IS_SUPABASE } = require('../database/db');
+    if (IS_SUPABASE) {
+      const sb = require('../database/db').supabase;
+      const { error: pErr } = await sb.from('posts').insert({
+        id: postId, user_id: req.user.id, post_text: result.postText,
+        hashtags: result.hashtags, intent, tone, ai_analysis: result.analysis,
+        status: 'draft', created_at: now, updated_at: now
+      });
+      if (pErr) throw new Error(pErr.message);
+
+      for (let i = 0; i < req.files.length; i++) {
+        const f = req.files[i];
+        await sb.from('post_images').insert({
+          id: uuidv4(), post_id: postId, filename: f.filename,
+          mimetype: f.mimetype, size: f.size, sort_order: i, created_at: now
+        });
+      }
+    } else {
+      await run(`
+        INSERT INTO posts (id, user_id, post_text, hashtags, intent, tone, ai_analysis, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+      `, [postId, req.user.id, result.postText, result.hashtags, intent, tone, result.analysis, now, now]);
+
+      for (let i = 0; i < req.files.length; i++) {
+        const f = req.files[i];
+        await run(`
+          INSERT INTO post_images (id, post_id, filename, mimetype, size, sort_order, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [uuidv4(), postId, f.filename, f.mimetype, f.size, i, now]);
+      }
+    }
+
+    res.json({
+      postId,
+      postText:  result.postText,
+      hashtags:  result.hashtags,
+      analysis:  result.analysis,
+      status:    'draft'
+    });
+
+  } catch (e) {
+    // Clean up uploaded files on error
+    (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch {} });
+    console.error('Generate error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---- POST /api/analyze/smart-schedule ----
+// Given a list of draft post IDs, ask Gemini to suggest a posting schedule
+router.post('/smart-schedule', requireAuth, async (req, res) => {
+  const { postIds } = req.body;
+  if (!postIds || !Array.isArray(postIds) || postIds.length === 0) {
+    return res.status(400).json({ error: 'Provide an array of postIds' });
+  }
+
+  try {
+    const { IS_SUPABASE } = require('../database/db');
+    let settings = null;
+    let posts = [];
+
+    if (IS_SUPABASE) {
+      const sb = require('../database/db').supabase;
+      const { data: sData } = await sb.from('user_settings').select('*').eq('user_id', req.user.id).single();
+      settings = sData;
+
+      const { data: pData } = await sb.from('posts')
+        .select('*')
+        .in('id', postIds)
+        .eq('user_id', req.user.id);
+      posts = pData || [];
+    } else {
+      settings = await get('SELECT * FROM user_settings WHERE user_id = ?', [req.user.id]);
+      posts = await all(
+        `SELECT * FROM posts WHERE id IN (${postIds.map(() => '?').join(',')}) AND user_id = ?`,
+        [...postIds, req.user.id]
+      );
+    }
+    
+    const postsPerWeek = settings?.posts_per_week || 3;
+
+    if (posts.length === 0) return res.status(404).json({ error: 'No matching draft posts found' });
+
+    // Get AI schedule suggestion
+    const descriptions  = posts.map(p => p.ai_analysis || p.post_text.slice(0, 80));
+    const today         = new Date().toISOString().split('T')[0];
+    const suggestions   = await suggestSchedule(descriptions, postsPerWeek, today);
+
+    // Get available time slots
+    const slots = getNextPostingSlots(settings || { preferred_days: 'monday,wednesday,friday', preferred_time_hour: 9 }, posts.length + 5);
+
+    // Build schedule result
+    const schedule = posts.map((post, idx) => {
+      let suggestedDate = null;
+      if (suggestions && suggestions[idx]) {
+        suggestedDate = suggestions[idx].suggestedDate;
+      } else if (slots[idx]) {
+        suggestedDate = slots[idx].toISOString().split('T')[0];
+      }
+      return {
+        postId:        post.id,
+        postPreview:   post.post_text.slice(0, 100) + '...',
+        suggestedDate,
+        reason:        suggestions?.[idx]?.reason || 'Optimal engagement time'
+      };
+    });
+
+    res.json({ schedule });
+  } catch (e) {
+    console.error('Smart schedule error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+module.exports = router;

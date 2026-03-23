@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedOut Pro — AI LinkedIn Post Generator</title>
+  <meta name="description" content="Generate stunning LinkedIn posts from your images using AI. Perfect for events, achievements, certificates, and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="2" y="9" width="4" height="12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="4" cy="4" r="2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="logo-text">LinkedOut<span class="logo-pro">Pro</span></span>
+      </div>
+      <div class="header-badge">
+        <span class="badge-dot"></span>
+        AI-Powered
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-tag">✦ Your personal LinkedIn content creator</div>
+      <h1 class="hero-title">Turn your moments into<br /><span class="gradient-text">viral LinkedIn posts</span></h1>
+      <p class="hero-sub">Upload an image or a folder of event photos. Our AI reads the context and crafts a professional, engaging post — instantly.</p>
+    </section>
+
+    <!-- API Key Section -->
+    <div class="api-card" id="apiCard">
+      <div class="api-card-header">
+        <div class="api-icon">🔑</div>
+        <div>
+          <div class="api-title">Gemini API Key</div>
+          <div class="api-sub">Required to generate posts. Your key stays in this browser only.</div>
+        </div>
+        <button class="api-toggle-btn" id="apiToggleBtn" onclick="toggleApiSection()">Configure</button>
+      </div>
+      <div class="api-input-wrap" id="apiInputWrap">
+        <div class="input-group">
+          <input type="password" id="apiKeyInput" placeholder="AIza..." class="text-input" />
+          <button class="btn-save" onclick="saveApiKey()">Save</button>
+        </div>
+        <p class="api-hint">Get your free key at <a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a></p>
+      </div>
+    </div>
+
+    <!-- Mode Toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="singleBtn" onclick="setMode('single')">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 21V9" stroke="currentColor" stroke-width="2"/></svg>
+        Single Image
+      </button>
+      <button class="mode-btn" id="eventBtn" onclick="setMode('event')">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        Event / Multiple
+      </button>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-section" id="uploadSection">
+      <!-- Single Mode -->
+      <div id="singleUpload" class="upload-zone" onclick="document.getElementById('singleFileInput').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'single')">
+        <input type="file" id="singleFileInput" accept="image/*" hidden onchange="handleFileSelect(event, 'single')" />
+        <div class="upload-icon-wrap">
+          <div class="upload-icon-ring"></div>
+          <svg class="upload-icon-svg" width="32" height="32" fill="none" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="upload-text">Drop your image here</div>
+        <div class="upload-sub">or <span class="link-text">browse to upload</span></div>
+        <div class="upload-formats">PNG, JPG, JPEG, WEBP • Max 10MB</div>
+      </div>
+
+      <!-- Event Mode -->
+      <div id="eventUpload" class="upload-zone hidden" onclick="document.getElementById('eventFileInput').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'event')">
+        <input type="file" id="eventFileInput" accept="image/*" multiple hidden onchange="handleFileSelect(event, 'event')" />
+        <div class="upload-icon-wrap">
+          <div class="upload-icon-ring"></div>
+          <svg class="upload-icon-svg" width="32" height="32" fill="none" viewBox="0 0 24 24">
+            <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="upload-text">Drop all event photos here</div>
+        <div class="upload-sub">or <span class="link-text">browse multiple images</span></div>
+        <div class="upload-formats">Select all images from your event • PNG, JPG, JPEG, WEBP</div>
+      </div>
+
+      <!-- Preview Strip -->
+      <div class="preview-strip" id="previewStrip"></div>
+    </div>
+
+    <!-- Context Input -->
+    <div class="context-section" id="contextSection">
+      <label class="context-label" for="contextInput">
+        <span id="contextLabelText">Image context <span class="optional">(optional)</span></span>
+      </label>
+      <textarea id="contextInput" class="context-textarea" rows="3" placeholder="e.g. 'Won 1st place at national hackathon' or 'Team retreat in Goa, Q1 2025'..."></textarea>
+
+      <!-- Intent Selector -->
+      <div class="intent-label">Post intent</div>
+      <div class="intent-chips">
+        <button class="chip active" data-intent="achievement" onclick="selectIntent(this)">🏆 Achievement</button>
+        <button class="chip" data-intent="announcement" onclick="selectIntent(this)">📣 Announcement</button>
+        <button class="chip" data-intent="storytelling" onclick="selectIntent(this)">📖 Storytelling</button>
+        <button class="chip" data-intent="motivation" onclick="selectIntent(this)">🔥 Motivation</button>
+        <button class="chip" data-intent="showcase" onclick="selectIntent(this)">✨ Showcase</button>
+      </div>
+
+      <!-- Tone Slider -->
+      <div class="tone-section">
+        <div class="tone-label">Tone</div>
+        <div class="tone-options">
+          <button class="tone-btn active" data-tone="professional" onclick="selectTone(this)">Professional</button>
+          <button class="tone-btn" data-tone="casual" onclick="selectTone(this)">Casual</button>
+          <button class="tone-btn" data-tone="bold" onclick="selectTone(this)">Bold</button>
+          <button class="tone-btn" data-tone="humble" onclick="selectTone(this)">Humble</button>
+        </div>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" onclick="generatePost()">
+        <span class="generate-btn-text" id="generateBtnText">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Generate Post
+        </span>
+        <span class="generate-btn-loading hidden" id="generateBtnLoading">
+          <span class="spinner"></span> Crafting your post...
+        </span>
+      </button>
+    </div>
+
+    <!-- Output Section -->
+    <div class="output-section hidden" id="outputSection">
+      <div class="output-header">
+        <div class="output-title">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#a78bfa" stroke="#a78bfa" stroke-width="1" stroke-linejoin="round"/></svg>
+          Generated Post
+        </div>
+        <div class="output-actions">
+          <button class="action-btn" onclick="copyPost()" id="copyBtn">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/></svg>
+            Copy
+          </button>
+          <button class="action-btn" onclick="regeneratePost()">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Regenerate
+          </button>
+        </div>
+      </div>
+
+      <!-- LinkedIn Preview Card -->
+      <div class="linkedin-card">
+        <div class="lk-card-header">
+          <div class="lk-avatar">
+            <svg width="26" height="26" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#94a3b8" stroke-width="1.5"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="lk-meta">
+            <div class="lk-name">You</div>
+            <div class="lk-handle">Your LinkedIn Profile</div>
+          </div>
+        </div>
+        <div class="lk-post-body" id="postBody"></div>
+        <div class="lk-hashtags" id="postHashtags"></div>
+        <div class="lk-image-preview" id="lkImagePreview"></div>
+        <div class="lk-card-footer">
+          <div class="lk-reaction">👍 <span>Like</span></div>
+          <div class="lk-reaction">💬 <span>Comment</span></div>
+          <div class="lk-reaction">↗️ <span>Repost</span></div>
+        </div>
+      </div>
+
+      <!-- Raw Post Text for editing -->
+      <div class="edit-section">
+        <div class="edit-label">Edit your post</div>
+        <textarea class="edit-textarea" id="editablePost" oninput="syncPreview()"></textarea>
+        <div class="edit-hashtags-row">
+          <div class="edit-hashtags-label">Hashtags</div>
+          <input type="text" class="edit-hashtags-input" id="editableHashtags" oninput="syncHashtags()" placeholder="#YourHashtags" />
+        </div>
+      </div>
+
+      <!-- Copy CTA -->
+      <button class="copy-full-btn" onclick="copyFull()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/></svg>
+        Copy Full Post + Hashtags
+      </button>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="toast hidden" id="toast"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div>Images are never stored. They're processed in-memory and sent to Gemini. 🔒 Privacy first.</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

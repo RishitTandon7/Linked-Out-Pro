@@ -1,0 +1,11 @@
+node_modules/
+.env
+data/
+uploads/
+*.db
+*.db-journal
+*.db-wal
+.vercel/
+prisma/
+prisma.config.ts
+firebase-service-account.json
