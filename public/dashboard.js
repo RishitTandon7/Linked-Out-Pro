@@ -12,6 +12,9 @@ let currentUser       = null;
 let postsCache        = [];
 let ppwValue          = 3;
 let currentFilter     = 'all';
+let cropper           = null;
+let currentEditIdx    = null;
+
 
 // ---- Init ----
 window.addEventListener('DOMContentLoaded', async () => {
@@ -361,10 +364,78 @@ function renderPreviewStrip() {
     const url = URL.createObjectURL(file);
     const div = document.createElement('div');
     div.className = 'preview-thumb';
-    div.innerHTML = `<img src="${url}" /><button class="remove-thumb" onclick="removeFile(${idx})">✕</button>`;
+    div.innerHTML = `
+      <img src="${url}" />
+      <div class="thumb-actions">
+        <button class="thumb-edit-btn" onclick="openEditModal(${idx})" title="Edit Image">✎</button>
+        <button class="remove-thumb" onclick="removeFile(${idx})" title="Remove">✕</button>
+      </div>
+    `;
     strip.appendChild(div);
   });
 }
+
+// ---- Image Editor Logic ----
+function openEditModal(idx) {
+  currentEditIdx = idx;
+  const file = selectedFiles[idx];
+  const reader = new FileReader();
+  
+  reader.onload = (e) => {
+    const imgEl = document.getElementById('editorImage');
+    imgEl.src = e.target.result;
+    document.getElementById('editModal').classList.remove('hidden');
+    
+    if (cropper) cropper.destroy();
+    
+    cropper = new Cropper(imgEl, {
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 1,
+      restore: false,
+      guides: true,
+      center: true,
+      highlight: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.add('hidden');
+  if (cropper) {
+    cropper.destroy();
+    cropper = null;
+  }
+}
+
+async function saveEditedImage() {
+  if (!cropper || currentEditIdx === null) return;
+  
+  const canvas = cropper.getCroppedCanvas({
+    maxWidth: 4096,
+    maxHeight: 4096,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  });
+  
+  canvas.toBlob((blob) => {
+    const originalFile = selectedFiles[currentEditIdx];
+    const editedFile = new File([blob], originalFile.name, {
+      type: originalFile.type,
+      lastModified: Date.now()
+    });
+    
+    selectedFiles[currentEditIdx] = editedFile;
+    renderPreviewStrip();
+    closeEditModal();
+    showToast('✓ Image updated', 'success');
+  }, selectedFiles[currentEditIdx].type);
+}
+
 
 // ---- Intent & Tone ----
 function selectIntent(btn) {

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
 </head>
 <body class="dash-body">
 
@@ -391,6 +392,34 @@
   <!-- Toast -->
   <div class="toast hidden" id="toast"></div>
 
+  <!-- Image Editor Modal -->
+  <div id="editModal" class="modal-overlay hidden">
+    <div class="modal-content editor-modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Edit Visual</h2>
+        <button class="close-modal" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="editor-body">
+        <div class="cropper-container">
+          <img id="editorImage" src="" />
+        </div>
+        <div class="editor-controls">
+          <button class="action-btn-line" onclick="cropper.rotate(-90)">↺ Rotate Left</button>
+          <button class="action-btn-line" onclick="cropper.rotate(90)">↻ Rotate Right</button>
+          <button class="action-btn-line" onclick="cropper.setAspectRatio(1)">1:1 Square</button>
+          <button class="action-btn-line" onclick="cropper.setAspectRatio(4/5)">4:5 Vertical</button>
+          <button class="action-btn-line" onclick="cropper.setAspectRatio(1.91/1)">1.91:1 Landscape</button>
+          <button class="action-btn-line" onclick="cropper.setAspectRatio(NaN)">Free</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn-line" onclick="closeEditModal()">Cancel</button>
+        <button class="action-btn-primary" onclick="saveEditedImage()">Apply Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
   <script src="/push.js"></script>
   <script src="/dashboard.js"></script>
   <script>
