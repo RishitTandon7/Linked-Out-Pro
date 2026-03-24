@@ -9,7 +9,14 @@ const router = express.Router();
 
 // Simple secret-header auth (not JWT — this is a machine-to-machine call)
 function requireCronSecret(req, res, next) {
-  const secret = req.headers['x-cron-secret'] || req.query.secret;
+  let secret = req.headers['x-cron-secret'] || req.query.secret;
+  
+  // Vercel Cron sends a Bearer token in the Authorization header
+  const authHeader = req.headers['authorization'];
+  if (!secret && authHeader && authHeader.startsWith('Bearer ')) {
+    secret = authHeader.split(' ')[1];
+  }
+
   if (!process.env.CRON_SECRET || process.env.CRON_SECRET === 'your_cron_secret_here') {
     // Cron secret not set — log warning but allow in dev
     console.warn('⚠️  CRON_SECRET not set. Cron endpoint is unprotected!');
@@ -21,10 +28,10 @@ function requireCronSecret(req, res, next) {
   next();
 }
 
-// ---- POST /api/cron/trigger ----
-// GitHub Actions hits this every N minutes
-router.post('/trigger', requireCronSecret, async (req, res) => {
-  console.log('🔔 Cron triggered at', new Date().toISOString());
+// ---- GET/POST /api/cron/trigger ----
+// Vercel Cron calls this via GET, GitHub Actions hits this via POST
+router.all('/trigger', requireCronSecret, async (req, res) => {
+  console.log(`🔔 Cron triggered (${req.method}) at`, new Date().toISOString());
   try {
     const result = await publishDuePosts();
     res.json({
