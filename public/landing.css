@@ -212,7 +212,23 @@ html, body {
   box-shadow: 0 20px 60px rgba(255,255,255,0.3), 0 0 0 1px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.2) inset; 
 }
 .cta-primary:active { transform: translateY(0); }
-.cta-note { font-size: 0.6875rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.05em; }
+
+.cta-google {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 15px 40px;
+  background: rgba(255,255,255,0.05); color: var(--text-primary);
+  border: 1px solid var(--border-hover); border-radius: 14px;
+  font-family: var(--font); font-size: 0.875rem; font-weight: 700;
+  letter-spacing: 0.01em; text-decoration: none; width: 100%;
+  justify-content: center;
+  transition: all 0.25s var(--ease);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.cta-google:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); transform: translateY(-2px); }
+
+.hero-cta { gap: 14px; }
+
+
 
 /* Feature Pills */
 .feature-pills {

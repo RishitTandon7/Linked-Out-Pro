@@ -1,9 +1,14 @@
-// routes/auth.js — LinkedIn OAuth flow
+// routes/auth.js — LinkedIn + Google OAuth flows
 const express = require('express');
 const crypto  = require('crypto');
+const axios   = require('axios');
 const { getAuthUrl, exchangeCodeForToken, getUserProfile } = require('../services/linkedin');
 const { createToken } = require('../middleware/auth');
 const db = require('../database/db');
+
+const GOOGLE_CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || '').trim();
+const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+const GOOGLE_CALLBACK_URL  = (process.env.GOOGLE_CALLBACK_URL  || '').trim();
 
 const router = express.Router();
 
@@ -118,6 +123,123 @@ router.get('/linkedin/callback', async (req, res) => {
   } catch (e) {
     console.error('OAuth callback error:', e);
     res.redirect(`/?error=${encodeURIComponent('Authentication failed: ' + e.message)}`);
+  }
+});
+
+// ---- GET /api/auth/google ----
+// Redirect user to Google OAuth page
+router.get('/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) {
+    return res.redirect('/?error=Google+sign-in+is+not+configured');
+  }
+  const state = crypto.randomBytes(16).toString('hex');
+  oauthStates.set(state, { createdAt: Date.now(), provider: 'google' });
+
+  const params = new URLSearchParams({
+    client_id:     GOOGLE_CLIENT_ID,
+    redirect_uri:  GOOGLE_CALLBACK_URL,
+    response_type: 'code',
+    scope:         'openid email profile',
+    state,
+    access_type:   'online',
+    prompt:        'select_account',
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// ---- GET /api/auth/google/callback ----
+router.get('/google/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+
+  if (error) return res.redirect(`/?error=${encodeURIComponent(error)}`);
+  if (!state || !oauthStates.has(state)) return res.redirect('/?error=invalid_state');
+  oauthStates.delete(state);
+
+  try {
+    // Exchange code for tokens
+    const tokenRes = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams({
+      code,
+      client_id:     GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      redirect_uri:  GOOGLE_CALLBACK_URL,
+      grant_type:    'authorization_code',
+    }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+
+    const { access_token } = tokenRes.data;
+
+    // Get Google user profile
+    const profileRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    const gProfile = profileRes.data; // { sub, email, name, picture }
+
+    if (!gProfile.email) throw new Error('No email returned from Google');
+
+    let user;
+    const now = Math.floor(Date.now() / 1000);
+
+    if (db.IS_SUPABASE) {
+      const supabase = db.supabase;
+
+      // Look up existing user by email (previously created via LinkedIn)
+      const { data: existing } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', gProfile.email)
+        .single();
+
+      if (existing) {
+        // Update name/avatar if Google has better data
+        const { data: updated } = await supabase
+          .from('users')
+          .update({ name: existing.name || gProfile.name, avatar_url: existing.avatar_url || gProfile.picture, updated_at: now })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        user = updated || existing;
+      } else {
+        // Create a new account (no LinkedIn connection yet — they can link later)
+        const { data: created, error: createErr } = await supabase
+          .from('users')
+          .insert({
+            linkedin_id:  `google_${gProfile.sub}`,
+            name:         gProfile.name,
+            email:        gProfile.email,
+            avatar_url:   gProfile.picture,
+            access_token: null,
+            created_at:   now,
+            updated_at:   now,
+          })
+          .select()
+          .single();
+        if (createErr) throw new Error('Failed to create user: ' + createErr.message);
+        user = created;
+        await supabase.from('user_settings').upsert({ user_id: user.id, updated_at: now }, { onConflict: 'user_id', ignoreDuplicates: true });
+      }
+    } else {
+      // SQLite path
+      const { run, get } = db;
+      const existing = await get('SELECT * FROM users WHERE email = ?', [gProfile.email]);
+      if (existing) {
+        user = existing;
+      } else {
+        const id = crypto.randomUUID();
+        await run(`INSERT INTO users (id, linkedin_id, name, email, avatar_url, access_token, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, `google_${gProfile.sub}`, gProfile.name, gProfile.email, gProfile.picture, null, now, now]);
+        await run(`INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)`, [crypto.randomUUID(), id, now]);
+        user = await get('SELECT * FROM users WHERE id = ?', [id]);
+      }
+    }
+
+    if (!user) throw new Error('User record not found after Google sign-in');
+
+    const token = createToken(user);
+    res.cookie('token', token, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    res.redirect('/dashboard');
+  } catch (e) {
+    console.error('Google OAuth error:', e);
+    res.redirect(`/?error=${encodeURIComponent('Google sign-in failed: ' + e.message)}`);
   }
 });
 
