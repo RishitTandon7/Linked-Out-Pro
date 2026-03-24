@@ -5,6 +5,7 @@
 const { IS_SUPABASE, supabase: sb, run, all } = require('../database/db');
 const { publishPost } = require('./linkedin');
 const { getLocalPath, deleteImage } = require('./storage');
+const { notifyPostPublished, notifyPostFailed } = require('./notifications');
 const fs = require('fs');
 
 const IS_VERCEL = process.env.VERCEL === '1';
@@ -165,6 +166,11 @@ async function publishSinglePost(post) {
     }
     if (deleted > 0) console.log(`🗑️  Deleted ${deleted} image(s) — storage freed`);
 
+    // Trigger success notification
+    try {
+      await notifyPostPublished(post.user_id, post.id);
+    } catch (err) { console.warn('Could not send success push:', err.message); }
+
     return true;
 
   } catch (e) {
@@ -175,6 +181,12 @@ async function publishSinglePost(post) {
     } else {
       await run(`UPDATE posts SET status='failed', fail_reason=?, updated_at=? WHERE id=?`, [e.message, now, post.id]);
     }
+
+    // Trigger failure notification
+    try {
+      await notifyPostFailed(post.user_id, e.message);
+    } catch (err) { console.warn('Could not send error push:', err.message); }
+
     return false;
   }
 }

@@ -64,19 +64,21 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         const f = req.files[i];
 
         // Upload to Supabase Storage so image persists across serverless invocations
-        let storageUrl = null, storagePath = null;
+        let storageUrl = null, storagePath = null, localPath = f.path;
         try {
           const stored = await uploadImage(f.path, f.filename, f.mimetype);
-          storageUrl   = stored.url;
-          storagePath  = stored.storagePath;
+          storageUrl  = stored.url;
+          storagePath = stored.storagePath;
+          localPath   = stored.localPath || f.path;  // keep whichever path is valid
         } catch (uploadErr) {
           console.warn('Supabase Storage upload failed:', uploadErr.message);
+          // Keep localPath = f.path so the image can still be published from disk
         }
 
         await sb.from('post_images').insert({
           id: crypto.randomUUID(), post_id: postId, filename: f.filename,
           mimetype: f.mimetype, size: f.size, sort_order: i,
-          storage_url: storageUrl, storage_path: storagePath,
+          storage_url: storageUrl, storage_path: storagePath, local_path: localPath,
           created_at: now
         });
       }
@@ -89,9 +91,9 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
       for (let i = 0; i < req.files.length; i++) {
         const f = req.files[i];
         await run(`
-          INSERT INTO post_images (id, post_id, filename, mimetype, size, sort_order, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, i, now]);
+          INSERT INTO post_images (id, post_id, filename, mimetype, size, sort_order, local_path, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, i, f.path, now]);
       }
     }
 

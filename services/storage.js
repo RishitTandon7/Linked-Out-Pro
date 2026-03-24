@@ -42,13 +42,13 @@ async function uploadImage(localFilePath, filename, mimetype) {
   // Get public URL
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
-  // Delete local temp file after Supabase upload
-  try { fs.unlinkSync(localFilePath); } catch {}
+  // Keep local file on disk as a fast fallback — scheduler will use it if available
+  // (Only delete if truly needed to save space, but don't silently break images)
 
   return {
     url:         data.publicUrl,
     storagePath,
-    localPath:   null
+    localPath:   localFilePath   // keep local path so scheduler can use it directly
   };
 }
 

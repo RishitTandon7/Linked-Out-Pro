@@ -6,6 +6,7 @@ const crypto  = require('crypto');
 const { requireAuth }     = require('../middleware/auth');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { publishSinglePost } = require('../services/scheduler');
+const { notifyPostScheduled } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -156,6 +157,10 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     if (isNaN(scheduledTs) || scheduledTs < Math.floor(Date.now() / 1000))
       return res.status(400).json({ error: 'scheduledAt must be a future date/time' });
     await updatePost(req.params.id, { status: 'scheduled', scheduled_at: scheduledTs });
+    
+    // Trigger notification
+    await notifyPostScheduled(req.user.id, scheduledTs);
+
     res.json({ success: true, scheduledAt: scheduledTs });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -171,6 +176,10 @@ router.post('/bulk-schedule', requireAuth, async (req, res) => {
       if (!post || post.status === 'published') continue;
       const ts = Math.floor(new Date(item.scheduledAt).getTime() / 1000);
       await updatePost(item.postId, { status: 'scheduled', scheduled_at: ts });
+      
+      // Trigger notification
+      await notifyPostScheduled(req.user.id, ts);
+
       results.push({ postId: item.postId, scheduledAt: ts });
     }
     res.json({ scheduled: results });
@@ -184,12 +193,21 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Already published' });
     const user = await getUser(req.user.id);
+
+    // Verify images exist in DB before publishing
+    const images = await getPostImages(post.id);
+    console.log(`📸 Publish-now: post ${post.id} has ${images.length} image(s) in DB`);
+
     await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
     const fullPost = { ...post, access_token: user.access_token, linkedin_id: user.linkedin_id };
-    await publishSinglePost(fullPost);
+    const result = await publishSinglePost(fullPost);
+    if (!result) return res.status(500).json({ error: 'Failed to publish to LinkedIn. Check server logs.' });
     const updated = await getPost(post.id, req.user.id);
     res.json({ success: true, post: updated });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('Publish-now error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ---- POST /api/posts/:id/unschedule ----

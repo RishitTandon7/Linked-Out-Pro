@@ -577,8 +577,23 @@ async function schedulePost() {
   const dt = document.getElementById('scheduleDate').value;
   if (!dt) { showToast('Pick a date and time', 'error'); return; }
 
+  // datetime-local gives "YYYY-MM-DDTHH:mm" in LOCAL time.
+  // We must NOT pass it through new Date().toISOString() which converts to UTC.
+  // Instead, compute the Unix timestamp from local time parts directly.
+  const [datePart, timePart] = dt.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute]     = timePart.split(':').map(Number);
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  const scheduledAtMs = localDate.getTime();
+
+  if (isNaN(scheduledAtMs) || scheduledAtMs <= Date.now()) {
+    showToast('Please pick a future date and time', 'error');
+    return;
+  }
+
   try {
-    await api(`/api/posts/${currentPostId}/schedule`, 'POST', { scheduledAt: new Date(dt).toISOString() });
+    // Send as Unix timestamp (seconds) so the server doesn't need to parse a timezone-ambiguous string
+    await api(`/api/posts/${currentPostId}/schedule`, 'POST', { scheduledAt: Math.floor(scheduledAtMs / 1000) });
     showToast('✓ Post scheduled!', 'success');
     loadStats(); loadPosts();
   } catch (e) { showToast(e.message, 'error'); }

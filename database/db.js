@@ -119,11 +119,16 @@ if (IS_SUPABASE) {
         mimetype    TEXT,
         size        INTEGER,
         storage_url TEXT,
+        storage_path TEXT,
+        local_path  TEXT,
         sort_order  INTEGER DEFAULT 0,
         created_at  INTEGER DEFAULT (unixepoch()),
         FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
       )
     `);
+    // Safe migration: add columns if they don't exist yet (for existing DBs)
+    await run(`ALTER TABLE post_images ADD COLUMN storage_path TEXT`).catch(() => {});
+    await run(`ALTER TABLE post_images ADD COLUMN local_path TEXT`).catch(() => {});
 
     await run(`
       CREATE TABLE IF NOT EXISTS user_settings (

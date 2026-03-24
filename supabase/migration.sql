@@ -44,15 +44,21 @@ CREATE INDEX IF NOT EXISTS idx_posts_scheduled ON posts(status, scheduled_at);
 
 -- 3. POST IMAGES TABLE
 CREATE TABLE IF NOT EXISTS post_images (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  filename    TEXT NOT NULL,
-  mimetype    TEXT,
-  size        INTEGER,
-  storage_url TEXT,             -- Supabase Storage public URL
-  sort_order  INTEGER DEFAULT 0,
-  created_at  BIGINT DEFAULT (EXTRACT(EPOCH FROM now())::BIGINT)
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id      UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  filename     TEXT NOT NULL,
+  mimetype     TEXT,
+  size         INTEGER,
+  storage_url  TEXT,             -- Supabase Storage public URL
+  storage_path TEXT,             -- Supabase Storage internal path (for deletion)
+  local_path   TEXT,             -- Absolute local file path (dev fallback)
+  sort_order   INTEGER DEFAULT 0,
+  created_at   BIGINT DEFAULT (EXTRACT(EPOCH FROM now())::BIGINT)
 );
+
+-- Safe migration for existing databases
+ALTER TABLE post_images ADD COLUMN IF NOT EXISTS storage_path TEXT;
+ALTER TABLE post_images ADD COLUMN IF NOT EXISTS local_path TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_post_images_post_id ON post_images(post_id);
 
