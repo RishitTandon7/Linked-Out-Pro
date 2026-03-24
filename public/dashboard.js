@@ -743,13 +743,53 @@ function setGenLoading(on) {
   document.getElementById('genBtnLoading').classList.toggle('hidden', !on);
 }
 
-let _toastTimer;
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast ${type}`;
-  t.classList.remove('hidden');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+/**
+ * Modern Premium Notification System
+ */
+function showToast(message, type = 'info') {
+  const container = document.getElementById('notifyContainer');
+  if (!container) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = message; t.className = `toast ${type}`;
+    t.classList.remove('hidden');
+    return;
+  }
+
+  const notify = document.createElement('div');
+  notify.className = `premium-notify ${type}`;
+  
+  let iconHtml = '';
+  if (type === 'success') {
+    iconHtml = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+  } else if (type === 'error') {
+    iconHtml = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+  } else {
+    iconHtml = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+  }
+
+  const title = type === 'success' ? 'Success' : (type === 'error' ? 'Critical' : 'Link');
+
+  notify.innerHTML = `
+    <div class="notify-icon ${type}">${iconHtml}</div>
+    <div class="notify-content">
+      <div class="notify-title">${title}</div>
+      <div class="notify-msg">${message}</div>
+    </div>
+  `;
+
+  container.prepend(notify);
+
+  const timer = setTimeout(() => {
+    notify.classList.add('exiting');
+    notify.addEventListener('animationend', () => notify.remove(), { once: true });
+  }, 5000);
+
+  notify.addEventListener('click', () => {
+    clearTimeout(timer);
+    notify.classList.add('exiting');
+    notify.addEventListener('animationend', () => notify.remove(), { once: true });
+  });
 }
 
 function escapeHtml(str) {

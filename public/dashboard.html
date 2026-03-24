@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0077b5">
 </head>
 <body class="dash-body">
 
@@ -388,12 +390,16 @@
     </div>
   </div>
 
-  <!-- Toast -->
+  <!-- Premium Notification Container -->
+  <div class="notify-container" id="notifyContainer"></div>
+
+  <!-- Toast (Legacy Fallback) -->
   <div class="toast hidden" id="toast"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
   <script src="/push.js"></script>
+  <script src="/pwa.js"></script>
   <script src="/dashboard.js"></script>
   <script>
     window.addEventListener('load', () => {

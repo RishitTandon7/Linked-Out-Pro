@@ -71,43 +71,53 @@ async function getUserProfile(accessToken) {
  * Upload an image to LinkedIn and return the asset URN
  */
 async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetype) {
-  // Step 1: Register the upload
-  const registerRes = await axios.post(
-    'https://api.linkedin.com/v2/assets?action=registerUpload',
-    {
-      registerUploadRequest: {
-        owner: `urn:li:person:${linkedinId}`,
-        recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
-        serviceRelationships: [{
-          identifier: 'urn:li:userGeneratedContent',
-          relationshipType: 'OWNER'
-        }],
-        supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD']
+  try {
+    // Step 1: Register the upload
+    const registerRes = await axios.post(
+      'https://api.linkedin.com/v2/assets?action=registerUpload',
+      {
+        registerUploadRequest: {
+          owner: `urn:li:person:${linkedinId}`,
+          recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+          serviceRelationships: [{
+            identifier: 'urn:li:userGeneratedContent',
+            relationshipType: 'OWNER'
+          }],
+          supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD']
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Restli-Protocol-Version': '2.0.0'
+        }
       }
-    },
-    {
+    );
+
+    const uploadUrl = registerRes.data.value.uploadMechanism
+      ['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+    const assetUrn = registerRes.data.value.asset;
+
+    // Step 2: Upload the binary image
+    const imageBuffer = fs.readFileSync(imagePath);
+    await axios.put(uploadUrl, imageBuffer, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Restli-Protocol-Version': '2.0.0'
+        'Content-Type': mimetype || 'image/jpeg'
       }
-    }
-  );
+    });
 
-  const uploadUrl = registerRes.data.value.uploadMechanism
-    ['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
-  const assetUrn = registerRes.data.value.asset;
+    return assetUrn;
 
-  // Step 2: Upload the binary image
-  const imageBuffer = fs.readFileSync(imagePath);
-  await axios.put(uploadUrl, imageBuffer, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': mimetype || 'image/jpeg'
-    }
-  });
-
-  return assetUrn;
+  } catch (err) {
+    console.error('LinkedIn Image Upload Detail Error:', {
+      msg: err.message,
+      status: err.response?.status,
+      data: err.response?.data
+    });
+    throw new Error(`LinkedIn Image Sync Failed: ${err.response?.data?.message || err.message}`);
+  }
 }
 
 /**
@@ -130,16 +140,17 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
     shareMediaCategory = 'IMAGE';
     for (const img of images) {
       try {
+        console.log(`📤 Syncing image to LinkedIn: ${img.path}`);
         const assetUrn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
         media.push({
           status: 'READY',
           media:  assetUrn
         });
       } catch (e) {
-        console.warn('Image upload failed, posting without image:', e.message);
+        console.error('❌ LinkedIn Media Sync Fault:', e.message);
+        throw e; // Stop here! Don't post text if images are intended but failing.
       }
     }
-    if (media.length === 0) shareMediaCategory = 'NONE';
   }
 
   const ugcPost = {
