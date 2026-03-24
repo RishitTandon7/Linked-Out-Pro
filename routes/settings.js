@@ -2,7 +2,7 @@
 const express = require('express');
 const { requireAuth }   = require('../middleware/auth');
 const { get, run }      = require('../database/db');
-const { v4: uuidv4 }    = require('uuid');
+const crypto            = require('crypto');
 
 const router = express.Router();
 
@@ -17,14 +17,14 @@ router.get('/', requireAuth, async (req, res) => {
       const { data } = await sb.from('user_settings').select('*').eq('user_id', req.user.id).single();
       settings = data;
       if (!settings) {
-        const { data: newSettings } = await sb.from('user_settings').upsert({ id: uuidv4(), user_id: req.user.id }).select().single();
+        const { data: newSettings } = await sb.from('user_settings').upsert({ id: crypto.randomUUID(), user_id: req.user.id }).select().single();
         settings = newSettings;
       }
     } else {
       settings = await get('SELECT * FROM user_settings WHERE user_id = ?', [req.user.id]);
       if (!settings) {
         const now = Math.floor(Date.now() / 1000);
-        await run('INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)', [uuidv4(), req.user.id, now]);
+        await run('INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)', [crypto.randomUUID(), req.user.id, now]);
         settings = await get('SELECT * FROM user_settings WHERE user_id = ?', [req.user.id]);
       }
     }
@@ -70,7 +70,7 @@ router.patch('/', requireAuth, async (req, res) => {
       
       if (error && error.code === 'PGRST116') {
         // Did not exist, upsert instead
-        updates.id = uuidv4();
+        updates.id = crypto.randomUUID();
         updates.user_id = req.user.id;
         const { data: upsertData } = await sb.from('user_settings').upsert(updates).select().single();
         updated = upsertData;

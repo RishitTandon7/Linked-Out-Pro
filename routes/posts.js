@@ -2,7 +2,7 @@
 const express = require('express');
 const path    = require('path');
 const fs      = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const crypto  = require('crypto');
 const { requireAuth }     = require('../middleware/auth');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { publishSinglePost } = require('../services/scheduler');
@@ -110,7 +110,7 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const { postText, hashtags, intent = 'manual', tone = 'manual' } = req.body;
     const now = Math.floor(Date.now() / 1000);
-    const postId = uuidv4();
+    const postId = crypto.randomUUID();
     if (IS_SUPABASE) {
       const { data, error } = await sb.from('posts').insert({
         id: postId, user_id: req.user.id, post_text: postText || '',

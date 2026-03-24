@@ -3,7 +3,7 @@ const express  = require('express');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const crypto   = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { generateLinkedInPost, suggestSchedule } = require('../services/gemini');
 const { run, get, all } = require('../database/db');
@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename:    (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
+    cb(null, `${crypto.randomUUID()}${ext}`);
   }
 });
 
@@ -45,7 +45,7 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
     const result     = await generateLinkedInPost(imageFiles, context, intent, tone);
 
     // Save as draft post in DB
-    const postId  = uuidv4();
+    const postId  = crypto.randomUUID();
     const now     = Math.floor(Date.now() / 1000);
 
     const { IS_SUPABASE } = require('../database/db');
@@ -61,7 +61,7 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
       for (let i = 0; i < req.files.length; i++) {
         const f = req.files[i];
         await sb.from('post_images').insert({
-          id: uuidv4(), post_id: postId, filename: f.filename,
+          id: crypto.randomUUID(), post_id: postId, filename: f.filename,
           mimetype: f.mimetype, size: f.size, sort_order: i, created_at: now
         });
       }
@@ -76,7 +76,7 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         await run(`
           INSERT INTO post_images (id, post_id, filename, mimetype, size, sort_order, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [uuidv4(), postId, f.filename, f.mimetype, f.size, i, now]);
+        `, [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, i, now]);
       }
     }
 

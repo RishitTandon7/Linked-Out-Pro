@@ -1,7 +1,6 @@
 // routes/auth.js — LinkedIn OAuth flow
 const express = require('express');
 const crypto  = require('crypto');
-const { v4: uuidv4 } = require('uuid');
 const { getAuthUrl, exchangeCodeForToken, getUserProfile } = require('../services/linkedin');
 const { createToken } = require('../middleware/auth');
 const db = require('../database/db');
@@ -94,13 +93,13 @@ router.get('/linkedin/callback', async (req, res) => {
         `, [profile.name, profile.email, profile.avatarUrl, tokenData.accessToken, expires, now, profile.linkedinId]);
         user = await get('SELECT * FROM users WHERE linkedin_id = ?', [profile.linkedinId]);
       } else {
-        const id = uuidv4();
+        const id = crypto.randomUUID();
         await run(`
           INSERT INTO users (id, linkedin_id, name, email, avatar_url, access_token, token_expires, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [id, profile.linkedinId, profile.name, profile.email, profile.avatarUrl, tokenData.accessToken, expires, now, now]);
 
-        await run(`INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)`, [uuidv4(), id, now]);
+        await run(`INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)`, [crypto.randomUUID(), id, now]);
         user = await get('SELECT * FROM users WHERE id = ?', [id]);
       }
     }
