@@ -28,7 +28,7 @@ jobs:
             -X POST \
             -H "Content-Type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.APP_BASE_URL }}/api/cron/trigger")
+            "https://linked-out-pro.vercel.app/api/cron/trigger")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
           BODY=$(echo "$RESPONSE" | head -n -1)
@@ -45,6 +45,6 @@ jobs:
 
       - name: Health check
         run: |
-          curl -sf "${{ secrets.APP_BASE_URL }}/api/cron/health" \
+          curl -sf "https://linked-out-pro.vercel.app/api/cron/health" \
             && echo "✅ App is healthy" \
             || echo "⚠️ Health check failed (non-critical)"
