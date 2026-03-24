@@ -112,6 +112,81 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
     res.status(500).json({ error: e.message });
   }
 });
+// ---- PUT /api/analyze/images/:postId/:index ----
+// Replace a specific image in a draft post (for in-browser image editing)
+router.put('/images/:postId/:index', requireAuth, upload.single('image'), async (req, res) => {
+  const { postId, index } = req.params;
+  const f = req.file;
+  if (!f) return res.status(400).json({ error: 'No image provided' });
+
+  try {
+    const { IS_SUPABASE } = require('../database/db');
+    const sb = IS_SUPABASE ? require('../database/db').supabase : null;
+    const { uploadImage, deleteImage } = require('../services/storage');
+
+    // Make sure user owns this post
+    let postExists = false;
+    if (IS_SUPABASE) {
+      const { data } = await sb.from('posts').select('id').eq('id', postId).eq('user_id', req.user.id).single();
+      postExists = !!data;
+    } else {
+      const p = await get('SELECT id FROM posts WHERE id = ? AND user_id = ?', [postId, req.user.id]);
+      postExists = !!p;
+    }
+    if (!postExists) return res.status(404).json({ error: 'Post not found' });
+
+    // Upload to storage
+    let storageUrl = null, storagePath = null, localPath = f.path;
+    try {
+      const stored = await uploadImage(f.path, f.filename, f.mimetype);
+      storageUrl  = stored.url;
+      storagePath = stored.storagePath;
+      localPath   = stored.localPath || f.path;
+    } catch (e) { console.warn('Storage upload failed:', e.message); }
+
+    const now = Math.floor(Date.now() / 1000);
+    let existingImage;
+    if (IS_SUPABASE) {
+      const { data } = await sb.from('post_images').select('*').eq('post_id', postId).eq('sort_order', index).single();
+      existingImage = data;
+    } else {
+      existingImage = await get('SELECT * FROM post_images WHERE post_id = ? AND sort_order = ?', [postId, index]);
+    }
+
+    if (existingImage) {
+      try {
+        if (existingImage.storage_path) await deleteImage(existingImage.storage_path);
+        if (existingImage.local_path && fs.existsSync(existingImage.local_path)) fs.unlinkSync(existingImage.local_path);
+      } catch (e) {}
+
+      if (IS_SUPABASE) {
+        await sb.from('post_images').update({
+          filename: f.filename, mimetype: f.mimetype, size: f.size,
+          storage_url: storageUrl, storage_path: storagePath, local_path: localPath
+        }).eq('id', existingImage.id);
+      } else {
+        await run(`UPDATE post_images SET filename=?, mimetype=?, size=?, storage_url=?, storage_path=?, local_path=? WHERE id=?`, 
+          [f.filename, f.mimetype, f.size, storageUrl, storagePath, localPath, existingImage.id]);
+      }
+    } else {
+      if (IS_SUPABASE) {
+        await sb.from('post_images').insert({
+          id: crypto.randomUUID(), post_id: postId, filename: f.filename, mimetype: f.mimetype, size: f.size, sort_order: parseInt(index),
+          storage_url: storageUrl, storage_path: storagePath, local_path: localPath, created_at: now
+        });
+      } else {
+        await run(`INSERT INTO post_images (id, post_id, filename, mimetype, size, storage_url, storage_path, local_path, sort_order, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                   [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, storageUrl, storagePath, localPath, index, now]);
+      }
+    }
+
+    res.json({ success: true, url: storageUrl || `/uploads/${f.filename}` });
+  } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch {}
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ---- POST /api/analyze/smart-schedule ----
 // Given a list of draft post IDs, ask Gemini to suggest a posting schedule

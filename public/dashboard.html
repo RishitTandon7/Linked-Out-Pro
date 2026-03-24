@@ -684,10 +684,29 @@
       ctx.scale(_editorFlipH ? -1 : 1, _editorFlipV ? -1 : 1);
       ctx.drawImage(_editorImg, -natW / 2, -natH / 2, natW, natH);
 
-      tmp.toBlob(blob => {
+      tmp.toBlob(async blob => {
         const original = selectedFiles[_editorFileIdx];
-        selectedFiles[_editorFileIdx] = new File([blob], original.name, { type: 'image/jpeg' });
+        const newFile = new File([blob], original.name, { type: 'image/jpeg' });
+        selectedFiles[_editorFileIdx] = newFile;
         renderPreviewStrip();
+        
+        // Push the update visually to the right preview if the post is active
+        if (typeof currentPostId !== 'undefined' && currentPostId) {
+          const txt  = document.getElementById('editPost')?.value || currentPostText;
+          const hash = document.getElementById('editHashtags')?.value || currentHashtags;
+          displayPost(txt, hash);
+          
+          // Sync with server db so that Publish/Schedule picks up the rotated image
+          const fd = new FormData();
+          fd.append('image', newFile);
+          try {
+            await fetch('/api/analyze/images/' + currentPostId + '/' + _editorFileIdx, {
+              method: 'PUT',
+              body: fd
+            });
+          } catch(e) { console.warn('Could not sync image to backend', e); }
+        }
+        
         closeImgEditor();
         showToast('✓ Image saved!', 'success');
       }, 'image/jpeg', 0.95);
