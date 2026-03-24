@@ -3,9 +3,10 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 
-const LI_CLIENT_ID     = process.env.LINKEDIN_CLIENT_ID;
-const LI_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const LI_CALLBACK_URL  = process.env.LINKEDIN_CALLBACK_URL;
+const LI_CLIENT_ID     = (process.env.LINKEDIN_CLIENT_ID     || '').trim();
+const LI_CLIENT_SECRET = (process.env.LINKEDIN_CLIENT_SECRET || '').trim();
+const LI_CALLBACK_URL  = (process.env.LINKEDIN_CALLBACK_URL  || '').trim();
+
 
 // LinkedIn OAuth Scopes needed:
 //   openid, profile, email  → get user info
