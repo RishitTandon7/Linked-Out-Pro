@@ -16,7 +16,13 @@
   <div id="bootScreen">
     <div class="boot-content">
       <div class="boot-logo">
-        <div style="background:var(--primary);color:#fff;border-radius:6px;font-weight:900;font-size:20px;padding:4px 8px;line-height:1;letter-spacing:-0.5px">out</div>
+        <div class="boot-logo-wrap">
+          <div class="boot-logo-in">in</div>
+          <div class="boot-logo-out">
+            <img src="/logo.png" alt="LinkedOut Pro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="boot-logo-out-text" style="display:none">out</span>
+          </div>
+        </div>
       </div>
       <div class="boot-progress-wrap">
         <div class="boot-progress-bar">
@@ -34,7 +40,7 @@
       <div class="nav-container">
         <div class="nav-left">
           <div class="logo group">
-            <div style="background:var(--primary);color:#fff;border-radius:4px;font-weight:900;font-size:14px;padding:3px 6px;line-height:1;margin-right:8px;letter-spacing:-0.5px">out</div>
+            <img src="/logo.svg" alt="out" style="width:28px;height:28px;border-radius:6px;object-fit:cover;" onerror="this.outerHTML='<div style=&quot;background:var(--primary);color:#fff;border-radius:4px;font-weight:900;font-size:12px;padding:3px 6px;line-height:1;&quot;>out</div>'">
             <span class="logo-text">LinkedOut <span class="logo-pro">Pro</span></span>
           </div>
           

@@ -362,3 +362,12 @@ html, body {
   .main-content { padding: 32px 20px 80px; }
   .metrics-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* Boot Screen Crossfade */
+.boot-logo-wrap { position:relative; width:120px; height:120px; border-radius:28px; }
+.boot-logo-in { position:absolute; inset:0; background:#0A66C2; border-radius:28px; display:flex; align-items:center; justify-content:center; animation:bootLogoIn 2.6s ease forwards; font-family:Georgia,serif; font-size:64px; font-weight:900; color:#fff; letter-spacing:-3px; box-shadow:0 20px 60px rgba(0,119,181,0.5); }
+.boot-logo-out { position:absolute; inset:0; background:#0A66C2; border-radius:28px; display:flex; align-items:center; justify-content:center; animation:bootLogoOut 2.6s ease forwards; opacity:0; box-shadow:0 20px 60px rgba(0,119,181,0.5); }
+.boot-logo-out img { width:100%; height:100%; object-fit:cover; border-radius:28px; }
+.boot-logo-out-text { font-size:44px; font-weight:900; color:#fff; letter-spacing:-2px; line-height:1; font-family:Inter,sans-serif; }
+@keyframes bootLogoIn { 0% { opacity:1; transform:scale(1); } 40% { opacity:1; transform:scale(1.05); } 70% { opacity:0; transform:scale(0.85); } 100% { opacity:0; transform:scale(0.8); } }
+@keyframes bootLogoOut { 0% { opacity:0; transform:scale(1.15); } 55% { opacity:0; transform:scale(1.15); } 80% { opacity:1; transform:scale(1.02); } 100% { opacity:1; transform:scale(1); } }

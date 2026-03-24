@@ -283,7 +283,10 @@ async function loadSettings() {
       btn.classList.toggle('active', activeDays.includes(btn.dataset.day));
     });
     document.querySelectorAll('.day-btn').forEach(btn => {
-      btn.onclick = () => { btn.classList.toggle('active'); };
+      btn.onclick = () => { 
+        btn.classList.toggle('active'); 
+        saveSettings(true);
+      };
     });
   } catch {}
 }
@@ -316,9 +319,6 @@ function setMode(mode) {
   renderPreviewStrip();
   document.getElementById('singleBtn').classList.toggle('active', mode === 'single');
   document.getElementById('eventBtn').classList.toggle('active', mode !== 'single');
-
-  const fi = document.getElementById('fileInput');
-  if (fi) fi.multiple = mode === 'event';
 
   const txt = document.getElementById('uploadText');
   if (txt) txt.textContent = mode === 'single' ? 'Drop Visuals' : 'Drop images (multiple)';
@@ -444,7 +444,7 @@ async function generatePost() {
 
 async function regenerate() { await generatePost(); }
 
-function displayPost(text, hashtags) {
+function displayPost(text, hashtags, serverImages = []) {
   const editPost = document.getElementById('editPost');
   editPost.value = text;
   
@@ -476,15 +476,25 @@ function displayPost(text, hashtags) {
   const preview = document.getElementById('lkImagePreview');
   preview.innerHTML = '';
   preview.className = 'lk-media';
-  if (selectedFiles.length === 1) {
+  
+  const previewUrls = [];
+  if (selectedFiles && selectedFiles.length > 0) {
+    selectedFiles.forEach(f => previewUrls.push(URL.createObjectURL(f)));
+  } else if (serverImages && serverImages.length > 0) {
+    serverImages.forEach(img => {
+      previewUrls.push(img.url || ('/uploads/' + img.filename));
+    });
+  }
+
+  if (previewUrls.length === 1) {
     const img = document.createElement('img');
-    img.src = URL.createObjectURL(selectedFiles[0]);
+    img.src = previewUrls[0];
     preview.appendChild(img);
-  } else if (selectedFiles.length > 1) {
+  } else if (previewUrls.length > 1) {
     preview.classList.add('grid2');
-    selectedFiles.slice(0, 4).forEach(f => {
+    previewUrls.slice(0, 4).forEach(src => {
       const img = document.createElement('img');
-      img.src = URL.createObjectURL(f);
+      img.src = src;
       preview.appendChild(img);
     });
   }
@@ -628,14 +638,42 @@ async function deletePost(id) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
-function editPost(id) {
+async function editPost(id) {
   const post = postsCache.find(p => p.id === id);
   if (!post) return;
   currentPostId   = post.id;
   currentPostText = post.post_text;
   currentHashtags = post.hashtags;
-  displayPost(post.post_text, post.hashtags);
+
+  if (post.images && post.images.length > 1) {
+    setMode('event');
+  } else {
+    setMode('single');
+  }
+
+  // Update right pane UI immediately
+  displayPost(post.post_text, post.hashtags, post.images);
   switchTab('create', document.querySelector('[data-tab="create"]'));
+
+  // Pre-load server images into selectedFiles asynchronously so they appear in the left upload zone
+  if (post.images && post.images.length > 0) {
+    selectedFiles = [];
+    for (const img of post.images) {
+      try {
+        const url = img.storage_url || ('/uploads/' + img.filename);
+        const res = await fetch(url);
+        if (!res.ok) continue; // Skip if file not found locally
+        const blob = await res.blob();
+        const file = new File([blob], img.filename, { type: img.mimetype || blob.type || 'image/jpeg' });
+        selectedFiles.push(file);
+      } catch (e) {
+        console.warn('Could not load image as file', e);
+      }
+    }
+  } else {
+    selectedFiles = [];
+  }
+  renderPreviewStrip();
 }
 
 // ---- Navigation ----
