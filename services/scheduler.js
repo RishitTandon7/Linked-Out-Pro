@@ -171,7 +171,7 @@ async function publishSinglePost(post) {
       await notifyPostPublished(post.user_id, post.id);
     } catch (err) { console.warn('Could not send success push:', err.message); }
 
-    return true;
+    return { success: true };
 
   } catch (e) {
     console.error(`❌ Failed to publish post ${post.id}:`, e.message);
@@ -187,7 +187,7 @@ async function publishSinglePost(post) {
       await notifyPostFailed(post.user_id, e.message);
     } catch (err) { console.warn('Could not send error push:', err.message); }
 
-    return false;
+    return { success: false, error: e.message };
   }
 }
 

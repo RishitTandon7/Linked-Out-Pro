@@ -109,14 +109,14 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
     });
 
     return assetUrn;
-
   } catch (err) {
-    console.error('LinkedIn Image Upload Detail Error:', {
-      msg: err.message,
+    console.error('❌ LinkedIn Image Sync Rejection:', {
       status: err.response?.status,
-      data: err.response?.data
+      data: JSON.stringify(err.response?.data, null, 2),
+      msg: err.message
     });
-    throw new Error(`LinkedIn Image Sync Failed: ${err.response?.data?.message || err.message}`);
+    const liError = err.response?.data?.message || err.message;
+    throw new Error(`LinkedIn Image Sync Failed: ${liError}`);
   }
 }
 
@@ -129,16 +129,17 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
  * @param {Array<{path, mimetype}>} images - optional
  */
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
-  const authorUrn = `urn:li:person:${linkedinId}`;
-  const fullText  = hashtags ? `${postText}\n\n${hashtags}` : postText;
+  try {
+    const authorUrn = `urn:li:person:${linkedinId}`;
+    const fullText  = hashtags ? `${postText}\n\n${hashtags}` : postText;
 
-  let shareMediaCategory = 'NONE';
-  let media = [];
+    let shareMediaCategory = 'NONE';
+    let media = [];
 
-  // Upload images if provided
-  if (images && images.length > 0) {
-    shareMediaCategory = 'IMAGE';
-    for (const img of images) {
+    // Upload images if provided
+    if (images && images.length > 0) {
+      shareMediaCategory = 'IMAGE';
+      for (const img of images) {
       try {
         console.log(`📤 Syncing image to LinkedIn: ${img.path}`);
         const assetUrn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
@@ -168,17 +169,26 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
     }
   };
 
-  const res = await axios.post('https://api.linkedin.com/v2/ugcPosts', ugcPost, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'X-Restli-Protocol-Version': '2.0.0'
-    }
-  });
+    const res = await axios.post('https://api.linkedin.com/v2/ugcPosts', ugcPost, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Restli-Protocol-Version': '2.0.0'
+      }
+    });
 
-  // The post ID is in the X-RestLi-Id header
-  const postId = res.headers['x-restli-id'] || res.data?.id || 'unknown';
-  return postId;
+    const postId = res.headers['x-restli-id'] || res.data?.id || 'unknown';
+    return postId;
+
+  } catch (err) {
+    console.error('❌ LinkedIn Final Post Rejection:', {
+      status: err.response?.status,
+      data: JSON.stringify(err.response?.data, null, 2),
+      msg: err.message
+    });
+    const liError = err.response?.data?.message || err.message;
+    throw new Error(`LinkedIn Final Post Failed: ${liError}`);
+  }
 }
 
 module.exports = { getAuthUrl, exchangeCodeForToken, getUserProfile, publishPost };
