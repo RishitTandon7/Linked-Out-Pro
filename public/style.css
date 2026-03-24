@@ -359,6 +359,40 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 }
 
 /* ========================
+   MODALS (Generic)
+   ======================== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999;
+  display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-weight: 800; font-size: 1.1rem; color: var(--text-primary); }
+.modal-close {
+  background: transparent; color: var(--text-muted); border: none; font-size: 1.2rem; cursor: pointer; transition: color 0.15s;
+}
+.modal-close:hover { color: var(--white); }
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 12px;
+  padding: 20px 24px; border-top: 1px solid var(--border); background: var(--surface);
+}
+.modal-btn {
+  padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; font-family: var(--font); transition: var(--transition);
+}
+.modal-btn.secondary { background: var(--surface-hi); color: var(--text-primary); border: 1px solid var(--border); }
+.modal-btn.primary { background: var(--primary); color: #fff; }
+.modal-btn.secondary:hover { background: var(--surface-hover); border-color: var(--border-hover); }
+.modal-btn.primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
+/* ========================
    IMAGE EDITOR MODAL
    ======================== */
 .img-editor-box { width: min(780px, 95vw); max-height: 92vh; overflow-y: auto; }

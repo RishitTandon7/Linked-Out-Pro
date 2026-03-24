@@ -515,22 +515,34 @@
       const canvas = document.getElementById('imgEditorCanvas');
       const ctx    = canvas.getContext('2d');
       const img    = _editorImg;
+
+      let isRotated = (_editorRotation % 180 !== 0);
+      let natW = img.naturalWidth, natH = img.naturalHeight;
+      let boundW = isRotated ? natH : natW;
+      let boundH = isRotated ? natW : natH;
+
       const maxW   = Math.min(680, window.innerWidth - 64);
       const maxH   = 400;
-      let dw = img.naturalWidth, dh = img.naturalHeight;
-      const sc = Math.min(maxW / dw, maxH / dh, 1);
-      dw = Math.round(dw * sc); dh = Math.round(dh * sc);
+      const sc     = Math.min(maxW / boundW, maxH / boundH, 1);
+
+      let dw = Math.round(boundW * sc);
+      let dh = Math.round(boundH * sc);
+      
       canvas.width = dw; canvas.height = dh;
       ctx.save();
       ctx.clearRect(0, 0, dw, dh);
       ctx.translate(dw / 2, dh / 2);
       ctx.rotate(_editorRotation * Math.PI / 180);
       ctx.scale(_editorFlipH ? -1 : 1, _editorFlipV ? -1 : 1);
-      ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+      
+      let drawW = Math.round(natW * sc);
+      let drawH = Math.round(natH * sc);
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
+
       if (_cropMode && _cropRect) {
         const { x, y, w, h } = _cropRect;
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(0, 0, dw, y);
         ctx.fillRect(0, y + h, dw, dh);
         ctx.fillRect(0, y, x, h);
@@ -570,16 +582,21 @@
         document.getElementById('cropToggleBtn').textContent = 'Cancel Crop';
         document.getElementById('applyCropBtn').style.display = 'inline-flex';
         canvas.style.cursor = 'move';
+        
         canvas.onmousedown = (e) => {
           const r = canvas.getBoundingClientRect();
+          let scaleX = canvas.width / r.width;
+          let scaleY = canvas.height / r.height;
           _cropDragging  = true;
-          _cropDragStart = { x: e.clientX - r.left, y: e.clientY - r.top, rect: { ..._cropRect } };
+          _cropDragStart = { x: (e.clientX - r.left)*scaleX, y: (e.clientY - r.top)*scaleY, rect: { ..._cropRect } };
         };
         canvas.onmousemove = (e) => {
           if (!_cropDragging) return;
           const r  = canvas.getBoundingClientRect();
-          const dx = (e.clientX - r.left) - _cropDragStart.x;
-          const dy = (e.clientY - r.top)  - _cropDragStart.y;
+          let scaleX = canvas.width / r.width;
+          let scaleY = canvas.height / r.height;
+          const dx = ((e.clientX - r.left)*scaleX) - _cropDragStart.x;
+          const dy = ((e.clientY - r.top)*scaleY) - _cropDragStart.y;
           _cropRect.x = Math.max(0, Math.min(_cropDragStart.rect.x + dx, canvas.width  - _cropRect.w));
           _cropRect.y = Math.max(0, Math.min(_cropDragStart.rect.y + dy, canvas.height - _cropRect.h));
           renderEditorCanvas();
@@ -597,18 +614,39 @@
 
     function applyCrop() {
       if (!_cropRect) return;
-      const src = document.getElementById('imgEditorCanvas');
+      const canvas = document.getElementById('imgEditorCanvas');
+      
+      let isRotated = (_editorRotation % 180 !== 0);
+      let natW = _editorImg.naturalWidth, natH = _editorImg.naturalHeight;
+      let boundW = isRotated ? natH : natW;
+      let boundH = isRotated ? natW : natH;
+      let scale = boundW / canvas.width;
+
+      let cx = _cropRect.x * scale;
+      let cy = _cropRect.y * scale;
+      let cw = _cropRect.w * scale;
+      let ch = _cropRect.h * scale;
+
       const tmp = document.createElement('canvas');
-      tmp.width  = Math.round(_cropRect.w);
-      tmp.height = Math.round(_cropRect.h);
-      tmp.getContext('2d').drawImage(src, _cropRect.x, _cropRect.y, _cropRect.w, _cropRect.h, 0, 0, _cropRect.w, _cropRect.h);
+      tmp.width  = cw;
+      tmp.height = ch;
+      const ctx = tmp.getContext('2d');
+      
+      ctx.translate(-cx, -cy);
+      ctx.translate(boundW / 2, boundH / 2);
+      ctx.rotate(_editorRotation * Math.PI / 180);
+      ctx.scale(_editorFlipH ? -1 : 1, _editorFlipV ? -1 : 1);
+      ctx.drawImage(_editorImg, -natW / 2, -natH / 2, natW, natH);
+      
       const newSrc = tmp.toDataURL('image/jpeg', 0.95);
       _editorImg = new Image();
       _editorImg.onload = () => {
+        _editorRotation = 0; _editorFlipH = false; _editorFlipV = false;
         _cropMode = false; _cropRect = null;
+        document.getElementById('rotateSlider').value = 0;
+        document.getElementById('rotateVal').textContent = '0°';
         document.getElementById('cropToggleBtn').textContent = 'Enable Crop';
         document.getElementById('applyCropBtn').style.display = 'none';
-        const canvas = document.getElementById('imgEditorCanvas');
         canvas.style.cursor = ''; canvas.onmousedown = canvas.onmousemove = canvas.onmouseup = null;
         renderEditorCanvas();
       };
@@ -629,8 +667,22 @@
     }
 
     function saveEditorImage() {
-      const canvas = document.getElementById('imgEditorCanvas');
-      canvas.toBlob(blob => {
+      let isRotated = (_editorRotation % 180 !== 0);
+      let natW = _editorImg.naturalWidth, natH = _editorImg.naturalHeight;
+      let boundW = isRotated ? natH : natW;
+      let boundH = isRotated ? natW : natH;
+
+      const tmp = document.createElement('canvas');
+      tmp.width = boundW;
+      tmp.height = boundH;
+      const ctx = tmp.getContext('2d');
+      
+      ctx.translate(boundW / 2, boundH / 2);
+      ctx.rotate(_editorRotation * Math.PI / 180);
+      ctx.scale(_editorFlipH ? -1 : 1, _editorFlipV ? -1 : 1);
+      ctx.drawImage(_editorImg, -natW / 2, -natH / 2, natW, natH);
+
+      tmp.toBlob(blob => {
         const original = selectedFiles[_editorFileIdx];
         selectedFiles[_editorFileIdx] = new File([blob], original.name, { type: 'image/jpeg' });
         renderPreviewStrip();
