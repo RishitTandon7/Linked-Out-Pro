@@ -12,9 +12,6 @@ let currentUser       = null;
 let postsCache        = [];
 let ppwValue          = 3;
 let currentFilter     = 'all';
-let cropper           = null;
-let currentEditIdx    = null;
-
 
 // ---- Init ----
 window.addEventListener('DOMContentLoaded', async () => {
@@ -364,78 +361,14 @@ function renderPreviewStrip() {
     const url = URL.createObjectURL(file);
     const div = document.createElement('div');
     div.className = 'preview-thumb';
-    div.innerHTML = `
-      <img src="${url}" />
-      <div class="thumb-actions">
-        <button class="thumb-edit-btn" onclick="openEditModal(${idx})" title="Edit Image">✎</button>
-        <button class="remove-thumb" onclick="removeFile(${idx})" title="Remove">✕</button>
-      </div>
-    `;
+    div.innerHTML = `<img src="${url}" />
+      <button class="remove-thumb" onclick="removeFile(${idx})">✕</button>
+      <button class="edit-thumb" onclick="openImgEditor(${idx})" title="Edit image">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>`;
     strip.appendChild(div);
   });
 }
-
-// ---- Image Editor Logic ----
-function openEditModal(idx) {
-  currentEditIdx = idx;
-  const file = selectedFiles[idx];
-  const reader = new FileReader();
-  
-  reader.onload = (e) => {
-    const imgEl = document.getElementById('editorImage');
-    imgEl.src = e.target.result;
-    document.getElementById('editModal').classList.remove('hidden');
-    
-    if (cropper) cropper.destroy();
-    
-    cropper = new Cropper(imgEl, {
-      viewMode: 1,
-      dragMode: 'move',
-      autoCropArea: 1,
-      restore: false,
-      guides: true,
-      center: true,
-      highlight: false,
-      cropBoxMovable: true,
-      cropBoxResizable: true,
-      toggleDragModeOnDblclick: false,
-    });
-  };
-  reader.readAsDataURL(file);
-}
-
-function closeEditModal() {
-  document.getElementById('editModal').classList.add('hidden');
-  if (cropper) {
-    cropper.destroy();
-    cropper = null;
-  }
-}
-
-async function saveEditedImage() {
-  if (!cropper || currentEditIdx === null) return;
-  
-  const canvas = cropper.getCroppedCanvas({
-    maxWidth: 4096,
-    maxHeight: 4096,
-    imageSmoothingEnabled: true,
-    imageSmoothingQuality: 'high',
-  });
-  
-  canvas.toBlob((blob) => {
-    const originalFile = selectedFiles[currentEditIdx];
-    const editedFile = new File([blob], originalFile.name, {
-      type: originalFile.type,
-      lastModified: Date.now()
-    });
-    
-    selectedFiles[currentEditIdx] = editedFile;
-    renderPreviewStrip();
-    closeEditModal();
-    showToast('✓ Image updated', 'success');
-  }, selectedFiles[currentEditIdx].type);
-}
-
 
 // ---- Intent & Tone ----
 function selectIntent(btn) {

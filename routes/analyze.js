@@ -50,6 +50,7 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
     const now     = Math.floor(Date.now() / 1000);
 
     const { IS_SUPABASE } = require('../database/db');
+    const { uploadImage } = require('../services/storage');
     if (IS_SUPABASE) {
       const sb = require('../database/db').supabase;
       const { error: pErr } = await sb.from('posts').insert({
@@ -61,9 +62,22 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
 
       for (let i = 0; i < req.files.length; i++) {
         const f = req.files[i];
+
+        // Upload to Supabase Storage so image persists across serverless invocations
+        let storageUrl = null, storagePath = null;
+        try {
+          const stored = await uploadImage(f.path, f.filename, f.mimetype);
+          storageUrl   = stored.url;
+          storagePath  = stored.storagePath;
+        } catch (uploadErr) {
+          console.warn('Supabase Storage upload failed:', uploadErr.message);
+        }
+
         await sb.from('post_images').insert({
           id: crypto.randomUUID(), post_id: postId, filename: f.filename,
-          mimetype: f.mimetype, size: f.size, sort_order: i, created_at: now
+          mimetype: f.mimetype, size: f.size, sort_order: i,
+          storage_url: storageUrl, storage_path: storagePath,
+          created_at: now
         });
       }
     } else {

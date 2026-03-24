@@ -177,16 +177,13 @@ html, body {
 .upload-text { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary); }
 
 .preview-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.preview-thumb { position: relative; width: 80px; height: 80px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
+.preview-thumb:hover .edit-thumb { opacity: 1; }
+.preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.remove-thumb { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.8); color: white; border: 1px solid var(--border); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); }
 .remove-thumb:hover { background: #ef4444; }
-
-.thumb-actions { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: var(--transition); }
-.preview-thumb:hover .thumb-actions { opacity: 1; }
-.thumb-edit-btn, .remove-thumb { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.8); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); font-size: 14px; text-decoration: none; }
-.thumb-edit-btn { position: static; background: var(--primary); border-color: var(--primary); }
-.thumb-edit-btn:hover { background: var(--primary-hover); transform: scale(1.1); }
-.remove-thumb { position: static; }
-.remove-thumb:hover { background: #ef4444; border-color: #ef4444; transform: scale(1.1); }
-
+.edit-thumb { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,119,181,0.9); color: white; border: none; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); }
+.edit-thumb:hover { background: var(--primary-hover); transform: scale(1.1); }
 
 /* Generic Inputs */
 .forge-textarea, .forge-input { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--white); font-family: var(--font); font-size: 0.95rem; font-weight: 500; padding: 16px 20px; border-radius: var(--radius-md); outline: none; transition: var(--transition); resize: none; background: rgba(255,255,255,0.02); }
@@ -364,18 +361,31 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 /* ========================
    IMAGE EDITOR MODAL
    ======================== */
-.editor-modal { width: min(800px, 95vw); max-height: 90vh; display: flex; flex-direction: column; padding: 0 !important; }
-.editor-body { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #000; overflow: hidden; }
-.cropper-container { flex: 1; min-height: 300px; max-height: 500px; width: 100%; display: flex; align-items: center; justify-content: center; }
-.editor-controls { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); justify-content: center; }
-.editor-controls button { padding: 8px 16px; font-size: 0.75rem; }
-.modal-overlay.hidden { display: none !important; }
-.modal-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
-.modal-content { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: 0 40px 100px rgba(0,0,0,0.8); overflow: hidden; animation: modalPop 0.4s var(--ease); }
-@keyframes modalPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
-.modal-title { font-size: 1.125rem; font-weight: 800; color: var(--white); letter-spacing: -0.01em; }
-.close-modal { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; font-size: 1.2rem; transition: var(--transition); }
-.close-modal:hover { color: var(--white); transform: rotate(90deg); }
-.modal-footer { padding: 20px 24px; display: flex; justify-content: flex-end; gap: 12px; background: rgba(255,255,255,0.02); }
+.img-editor-box { width: min(780px, 95vw); max-height: 92vh; overflow-y: auto; }
+.img-editor-body { display: flex; flex-direction: column; gap: 20px; padding: 20px 24px; }
+.img-editor-canvas-wrap {
+  width: 100%; background: #000; border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 220px; border: 1px solid var(--border);
+}
+#imgEditorCanvas { display: block; max-width: 100%; }
+.img-editor-controls { display: flex; flex-direction: column; gap: 16px; }
+.editor-ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); }
+.ctrl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctrl-btn {
+  padding: 7px 14px; background: var(--surface-hi); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary); font-family: var(--font);
+  font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: var(--transition);
+  white-space: nowrap;
+}
+.ctrl-btn:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+.accent-btn { background: rgba(0,119,181,0.15); border-color: rgba(0,119,181,0.4); color: #38bdf8; }
+.accent-btn:hover { background: rgba(0,119,181,0.25); }
+.ctrl-slider {
+  flex: 1; min-width: 100px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.ctrl-val { font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); min-width: 32px; }
 
