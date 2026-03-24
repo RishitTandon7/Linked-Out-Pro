@@ -96,10 +96,47 @@ async function publishSinglePost(post) {
       images = await all('SELECT * FROM post_images WHERE post_id = ? ORDER BY sort_order', [post.id]);
     }
 
-    const imageFiles = images.map(img => ({
-      path:     getLocalPath(img),
-      mimetype: img.mimetype
-    }));
+    // Build imageFiles — on Vercel, images live in Supabase Storage so we must
+    // download them to /tmp before passing to LinkedIn's readFileSync-based uploader.
+    const os   = require('os');
+    const path = require('path');
+    const https = require('https');
+    const http  = require('http');
+
+    async function downloadToTemp(url, filename) {
+      const dest = path.join(os.tmpdir(), `li_${Date.now()}_${filename}`);
+      return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        const lib  = url.startsWith('https') ? https : http;
+        lib.get(url, (res) => {
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(dest); });
+        }).on('error', (err) => { try { fs.unlinkSync(dest); } catch {} reject(err); });
+      });
+    }
+
+    const imageFiles = [];
+    const tmpFilesToCleanup = [];
+
+    for (const img of images) {
+      try {
+        if (img.storage_url) {
+          // Production (Vercel): local file already deleted — download fresh from Supabase
+          const tmpPath = await downloadToTemp(img.storage_url, img.filename || `img_${img.id}`);
+          tmpFilesToCleanup.push(tmpPath);
+          imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
+        } else {
+          const localPath = getLocalPath(img);
+          if (fs.existsSync(localPath)) {
+            imageFiles.push({ path: localPath, mimetype: img.mimetype });
+          } else {
+            console.warn(`⚠️  Image file not found locally, skipping: ${localPath}`);
+          }
+        }
+      } catch (e) {
+        console.warn(`⚠️  Could not load image ${img.id} for posting:`, e.message);
+      }
+    }
 
     const linkedinPostId = await publishPost(
       post.access_token,
@@ -108,6 +145,12 @@ async function publishSinglePost(post) {
       post.hashtags,
       imageFiles
     );
+
+    // Clean up temp downloads
+    for (const tmp of tmpFilesToCleanup) {
+      try { fs.unlinkSync(tmp); } catch {}
+    }
+
 
     const now = Math.floor(Date.now() / 1000);
     if (IS_SUPABASE) {
