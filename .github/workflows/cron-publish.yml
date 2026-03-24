@@ -27,7 +27,7 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
-            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "x-cron-secret: 62d67a5f4739996dc9372c839204ba33" \
             "https://linked-out-pro.vercel.app/api/cron/trigger")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
