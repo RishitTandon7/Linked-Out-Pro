@@ -18,17 +18,28 @@ try {
   const fs   = require('fs');
   const path = require('path');
   const serviceAccountPath = path.join(__dirname, '..', 'firebase-service-account.json');
-  if (fs.existsSync(serviceAccountPath)) {
+  const serviceAccountEnv  = process.env.FIREBASE_SERVICE_ACCOUNT;
+  
+  if (fs.existsSync(serviceAccountPath) || serviceAccountEnv) {
     const admin = require('firebase-admin');
     if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(require(serviceAccountPath))
-      });
+      let cert;
+      if (serviceAccountEnv) {
+        try {
+          cert = JSON.parse(serviceAccountEnv);
+        } catch(e) { console.warn('Invalid FIREBASE_SERVICE_ACCOUNT JSON in env'); }
+      } else {
+        cert = require(serviceAccountPath);
+      }
+
+      if (cert) {
+        admin.initializeApp({ credential: admin.credential.cert(cert) });
+        adminMessaging = admin.messaging();
+        console.log('✅ Firebase Admin SDK initialized (push notifications active)');
+      }
     }
-    adminMessaging = admin.messaging();
-    console.log('✅ Firebase Admin SDK initialized (push notifications active)');
   } else {
-    console.log('ℹ️  firebase-service-account.json not found — push notifications disabled');
+    console.log('ℹ️  firebase-service-account.json or FIREBASE_SERVICE_ACCOUNT env not found — push notifications disabled');
   }
 } catch (e) {
   console.warn('⚠️  Firebase Admin init failed:', e.message);
