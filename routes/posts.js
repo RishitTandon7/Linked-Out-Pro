@@ -209,7 +209,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const images = await getPostImages(post.id);
     images.forEach(img => {
-      try { fs.unlinkSync(path.join(process.env.UPLOADS_DIR || './uploads', img.filename)); } catch {}
+      try {
+        const uDir = process.env.VERCEL ? require('os').tmpdir() : (process.env.UPLOADS_DIR || './uploads');
+        fs.unlinkSync(path.join(uDir, img.filename));
+      } catch {}
     });
     if (IS_SUPABASE) {
       await sb.from('posts').delete().eq('id', req.params.id).eq('user_id', req.user.id);

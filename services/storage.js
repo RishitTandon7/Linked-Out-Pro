@@ -6,7 +6,8 @@ const path     = require('path');
 
 const BUCKET      = process.env.SUPABASE_STORAGE_BUCKET || 'post-images';
 const IS_PROD     = process.env.NODE_ENV === 'production';
-const UPLOADS_DIR = process.env.UPLOADS_DIR || './uploads';
+const os          = require('os');
+const UPLOADS_DIR = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
 
 /**
  * Upload an image file to Supabase Storage (production)

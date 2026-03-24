@@ -12,7 +12,8 @@ const { getNextPostingSlots } = require('../services/scheduler');
 const router = express.Router();
 
 // ---- Multer storage config ----
-const UPLOADS_DIR = process.env.UPLOADS_DIR || './uploads';
+const os = require('os');
+const UPLOADS_DIR = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
