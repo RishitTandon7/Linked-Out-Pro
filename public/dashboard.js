@@ -12,6 +12,8 @@ let currentUser       = null;
 let postsCache        = [];
 let ppwValue          = 3;
 let currentFilter     = 'all';
+let multiPostResults  = [];     // All generated results in single-mode multi-image
+let multiPostIndex    = 0;      // Which result is currently shown
 
 // ---- Init ----
 window.addEventListener('DOMContentLoaded', async () => {
@@ -20,7 +22,106 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadPosts();
   await loadSettings();
   setDefaultDateTime();
+  startOnboarding();  // Show walkthrough for first-time users
 });
+
+// ========================
+// ONBOARDING WALKTHROUGH
+// ========================
+let _obStep = 0;
+const OB_STEPS = 4;
+
+function startOnboarding() {
+  // Only show once per user — keyed by userId when available
+  const key = 'lop_onboarded_' + (currentUser?.id || 'guest');
+  if (localStorage.getItem(key)) return;
+  const overlay = document.getElementById('onboardingOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  _obStep = 0;
+  _renderObStep();
+  // Show PWA install button if prompt is already available
+  if (typeof deferredPrompt !== 'undefined' && deferredPrompt) {
+    const btn = document.getElementById('obInstallBtn');
+    if (btn) btn.style.display = 'flex';
+    const alt = document.getElementById('obInstallAlt');
+    if (alt) alt.style.display = 'none';
+  }
+}
+
+function _renderObStep() {
+  document.querySelectorAll('.ob-step').forEach((el, i) => el.classList.toggle('active', i === _obStep));
+  document.querySelectorAll('.ob-dot').forEach((el, i) => el.classList.toggle('active', i === _obStep));
+  const isLast = _obStep === OB_STEPS - 1;
+  // Step 0 = welcome → next button says "Start Tour"
+  const isWelcome = _obStep === 0;
+  document.getElementById('obNextLabel').textContent = isWelcome ? 'Start Tour →' : (isLast ? 'Start Creating →' : 'Next');
+  document.getElementById('obSkipBtn').style.display = isLast ? 'none' : 'inline-block';
+  if (_obStep === 3 && typeof deferredPrompt !== 'undefined' && deferredPrompt) {
+    const btn = document.getElementById('obInstallBtn');
+    if (btn) btn.style.display = 'flex';
+    const alt = document.getElementById('obInstallAlt');
+    if (alt) alt.style.display = 'none';
+  }
+}
+
+function nextOnboardingStep() {
+  // Step 0 (Welcome) → launch live tour instead of next static step
+  if (_obStep === 0) { closeOnboarding(); startLiveTour(); return; }
+  if (_obStep < OB_STEPS - 1) { _obStep++; _renderObStep(); }
+  else closeOnboarding();
+}
+
+function skipOnboarding() { closeOnboarding(); }
+
+function closeOnboarding() {
+  const overlay = document.getElementById('onboardingOverlay');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    overlay.style.transform = 'scale(0.97)';
+    overlay.style.transition = 'all 0.3s ease';
+    setTimeout(() => overlay.classList.add('hidden'), 300);
+  }
+  localStorage.setItem('lop_onboarded_' + (currentUser?.id || 'guest'), '1');
+}
+
+async function onboardingEnableNotifications() {
+  const btn = document.getElementById('obEnableNotifBtn');
+  const hint = document.getElementById('obNotifSkipHint');
+  if (btn) { btn.disabled = true; btn.textContent = 'Requesting...'; }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      if (btn) {
+        btn.classList.add('done');
+        btn.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg> Notifications Enabled!';
+        btn.disabled = false;
+      }
+      if (hint) hint.textContent = "You'll get notified when posts go live ✓";
+      if (typeof initPushNotifications === 'function') initPushNotifications();
+      setTimeout(() => nextOnboardingStep(), 1200);
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Permission Denied — Skip'; }
+      if (hint) hint.textContent = 'You can enable notifications later in browser settings';
+    }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Not Available — Skip'; }
+  }
+}
+
+async function onboardingInstallApp() {
+  if (typeof deferredPrompt !== 'undefined' && deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    const btn = document.getElementById('obInstallBtn');
+    if (outcome === 'accepted' && btn) {
+      btn.classList.add('done');
+      btn.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg> Installed!';
+      setTimeout(() => closeOnboarding(), 1000);
+    }
+  }
+}
 
 // ---- Load User ----
 async function loadUser() {
@@ -272,10 +373,20 @@ async function loadSettings() {
     const s = data.settings;
     if (!s) return;
 
-    document.getElementById('autoPostToggle').checked    = Boolean(s.auto_post_enabled);
-    document.getElementById('preferredHour').value       = s.preferred_time_hour ?? 9;
+    document.getElementById('autoPostToggle').checked = Boolean(s.auto_post_enabled);
     ppwValue = s.posts_per_week || 3;
-    document.getElementById('ppwDisplay').textContent    = ppwValue;
+    document.getElementById('ppwDisplay').textContent = ppwValue;
+
+    // Sync custom Prime Time dropdown
+    const hourVal = String(s.preferred_time_hour ?? 9);
+    const labels = { '-1': 'Let Agent Decide ✨', '8': '8:00 AM', '9': '9:00 AM', '12': '12:00 PM', '18': '6:00 PM' };
+    document.getElementById('preferredHour').value = hourVal;
+    const labelEl = document.getElementById('preferredHourLabel');
+    if (labelEl) labelEl.textContent = labels[hourVal] || '9:00 AM';
+    // Mark active option
+    document.querySelectorAll('#preferredHourDrop .custom-select-option').forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.value === hourVal);
+    });
 
     // Mark day buttons
     const activeDays = (s.preferred_days || '').split(',').map(d => d.trim().toLowerCase());
@@ -283,13 +394,47 @@ async function loadSettings() {
       btn.classList.toggle('active', activeDays.includes(btn.dataset.day));
     });
     document.querySelectorAll('.day-btn').forEach(btn => {
-      btn.onclick = () => { 
-        btn.classList.toggle('active'); 
+      btn.onclick = () => {
+        btn.classList.toggle('active');
         saveSettings(true);
       };
     });
   } catch {}
 }
+
+// ---- Custom Select Dropdown ----
+function toggleCustomSelect(id) {
+  const el = document.getElementById(id);
+  const isOpen = el.classList.contains('open');
+  // Close all other open selects
+  document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+  if (!isOpen) el.classList.add('open');
+}
+
+function selectCustomOption(dropId, value, label) {
+  const drop = document.getElementById(dropId);
+  // Update hidden input
+  const hidden = drop.querySelector('input[type=hidden]');
+  if (hidden) hidden.value = value;
+  // Update label
+  const labelEl = drop.querySelector('.custom-select-trigger span');
+  if (labelEl) labelEl.textContent = label;
+  // Mark active
+  drop.querySelectorAll('.custom-select-option').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.value === value);
+  });
+  // Close
+  drop.classList.remove('open');
+  // Save settings
+  saveSettings(true);
+}
+
+// Close custom dropdowns on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.custom-select')) {
+    document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+  }
+});
 
 async function saveSettings(showFeedback = false) {
   const activeDays = [...document.querySelectorAll('.day-btn.active')]
@@ -321,7 +466,7 @@ function setMode(mode) {
   document.getElementById('eventBtn').classList.toggle('active', mode !== 'single');
 
   const txt = document.getElementById('uploadText');
-  if (txt) txt.textContent = mode === 'single' ? 'Drop Visuals' : 'Drop images (multiple)';
+  if (txt) txt.textContent = mode === 'single' ? 'Drop images — each becomes a separate post' : 'Drop images — all combined into one post';
 
   const lbl = document.getElementById('contextLabel');
   if (lbl) {
@@ -332,6 +477,8 @@ function setMode(mode) {
 
   const out = document.getElementById('outputSection');
   if (out) out.classList.remove('hidden');
+
+  updateForgeButton();
 }
 
 // ---- Drag & Drop ----
@@ -350,9 +497,39 @@ function handleFileSelect(e) {
 function addFiles(files) {
   selectedFiles = [...selectedFiles, ...files].slice(0, 10);
   renderPreviewStrip();
+  updateForgeButton();
 }
 
-function removeFile(idx) { selectedFiles.splice(idx, 1); renderPreviewStrip(); }
+function removeFile(idx) { selectedFiles.splice(idx, 1); renderPreviewStrip(); updateForgeButton(); }
+
+// ---- Update forge button + banner to reflect current mode & file count ----
+function updateForgeButton() {
+  const n = selectedFiles.length;
+  const btnText = document.getElementById('genBtnText');
+  const banner  = document.getElementById('modeBannerText');
+  if (!btnText) return;
+
+  if (currentMode === 'single') {
+    if (n === 0) {
+      btnText.textContent = 'Forge Post';
+      if (banner) banner.textContent = 'Each image will generate its own separate LinkedIn post';
+    } else if (n === 1) {
+      btnText.textContent = 'Forge 1 Post';
+      if (banner) banner.textContent = '1 image selected → 1 LinkedIn post will be created';
+    } else {
+      btnText.textContent = `Forge ${n} Separate Posts`;
+      if (banner) banner.textContent = `${n} images selected → ${n} separate LinkedIn posts will be created (one per image)`;
+    }
+  } else {
+    if (n <= 1) {
+      btnText.textContent = 'Forge 1 Post';
+      if (banner) banner.textContent = 'All images will be combined into one single LinkedIn post';
+    } else {
+      btnText.textContent = `Forge 1 Post (${n} images)`;
+      if (banner) banner.textContent = `${n} images selected → combined into 1 single LinkedIn post`;
+    }
+  }
+}
 
 function renderPreviewStrip() {
   const strip = document.getElementById('previewStrip');
@@ -396,7 +573,8 @@ async function generatePost() {
       }
 
       const results = [];
-      for (const f of selectedFiles) {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const f = selectedFiles[i];
         const formData = new FormData();
         formData.append('images', f);
         formData.append('context', context);
@@ -406,16 +584,29 @@ async function generatePost() {
         const res = await fetch('/api/analyze/generate', { method: 'POST', body: formData, credentials: 'include' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Generation failed');
-        results.push(data);
+        // Store the corresponding file index so we know which preview image to show
+        results.push({ ...data, fileIndex: i });
       }
 
+      multiPostResults = results;
+      multiPostIndex   = 0;
+
+      // Show the first result
       const first = results[0];
       currentPostId   = first.postId;
       currentPostText = first.postText;
       currentHashtags = first.hashtags;
-      displayPost(first.postText, first.hashtags);
 
-      if (results.length > 1) showToast(`✓ ${results.length} posts forged and saved to queue!`, 'success');
+      // Temporarily set selectedFiles to just this image for the preview
+      const savedFiles = selectedFiles;
+      selectedFiles = [savedFiles[first.fileIndex]];
+      displayPost(first.postText, first.hashtags);
+      selectedFiles = savedFiles;
+
+      // Render multi-post navigator if more than one result
+      renderMultiPostNav(results, 0);
+
+      if (results.length > 1) showToast(`✓ ${results.length} posts forged! Use ← → to browse each.`, 'success');
       else showToast('✓ Post generated and saved to draft!', 'success');
 
     } else {
@@ -430,10 +621,13 @@ async function generatePost() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
 
+      multiPostResults = [];
+      multiPostIndex   = 0;
       currentPostId   = data.postId;
       currentPostText = data.postText;
       currentHashtags = data.hashtags;
       displayPost(data.postText, data.hashtags);
+      removeMultiPostNav();
       showToast('✓ Event post generated and saved to draft!', 'success');
     }
 
@@ -444,6 +638,62 @@ async function generatePost() {
   } finally {
     setGenLoading(false);
   }
+}
+
+// ---- Multi-post navigator (shown when single-mode generates N posts) ----
+function renderMultiPostNav(results, idx) {
+  // Remove any existing navigator
+  removeMultiPostNav();
+  if (results.length <= 1) return;
+
+  const actions = document.getElementById('previewActions');
+  if (!actions) return;
+
+  const nav = document.createElement('div');
+  nav.id = 'multiPostNav';
+  nav.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px;padding:8px 0;border-bottom:1px solid var(--border)';
+  nav.innerHTML = `
+    <button class="action-btn-line" id="multiPrevBtn" onclick="navigateMultiPost(-1)" style="padding:6px 14px;font-size:0.8rem">← Prev</button>
+    <span id="multiPostCounter" style="font-size:0.78rem;color:var(--text-muted);font-weight:600">Post ${idx + 1} of ${results.length}</span>
+    <button class="action-btn-line" id="multiNextBtn" onclick="navigateMultiPost(1)" style="padding:6px 14px;font-size:0.8rem">Next →</button>
+  `;
+  actions.parentNode.insertBefore(nav, actions);
+  updateMultiNavButtons(idx, results.length);
+}
+
+function removeMultiPostNav() {
+  const existing = document.getElementById('multiPostNav');
+  if (existing) existing.remove();
+}
+
+function updateMultiNavButtons(idx, total) {
+  const prev = document.getElementById('multiPrevBtn');
+  const next = document.getElementById('multiNextBtn');
+  const counter = document.getElementById('multiPostCounter');
+  if (prev) prev.disabled = (idx === 0);
+  if (next) next.disabled = (idx === total - 1);
+  if (counter) counter.textContent = `Post ${idx + 1} of ${total}`;
+}
+
+function navigateMultiPost(delta) {
+  const results = multiPostResults;
+  if (!results || results.length === 0) return;
+  const newIdx = Math.max(0, Math.min(results.length - 1, multiPostIndex + delta));
+  if (newIdx === multiPostIndex) return;
+  multiPostIndex = newIdx;
+
+  const r = results[newIdx];
+  currentPostId   = r.postId;
+  currentPostText = r.postText;
+  currentHashtags = r.hashtags;
+
+  // Show only this image in the preview
+  const savedFiles = selectedFiles;
+  selectedFiles = [savedFiles[r.fileIndex]];
+  displayPost(r.postText, r.hashtags);
+  selectedFiles = savedFiles;
+
+  updateMultiNavButtons(newIdx, results.length);
 }
 
 async function regenerate() { await generatePost(); }

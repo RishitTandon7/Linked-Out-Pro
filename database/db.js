@@ -46,55 +46,33 @@ if (IS_SUPABASE) {
 //  SQLITE (local development)
 // ========================================================
 } else {
-  const IS_VERCEL = process.env.VERCEL === '1';
-  let sqlite3;
-  try {
-    sqlite3 = require('sqlite3').verbose();
-  } catch (e) {
-    console.warn('⚠️  sqlite3 not available (this is expected on some serverless platforms)');
-  }
-
-  const DB_PATH = process.env.DB_PATH || (IS_VERCEL ? '/tmp/dev.db' : './data/linkedoutpro.db');
-  const dataDir = path.dirname(DB_PATH);
-  const fs      = require('fs');
+  const sqlite3 = require('sqlite3').verbose();
   const path    = require('path');
+  const fs      = require('fs');
 
-  if (!IS_VERCEL && !fs.existsSync(dataDir)) {
-    try { fs.mkdirSync(dataDir, { recursive: true }); } catch(e) {}
-  }
+  const DB_PATH = process.env.DB_PATH || './data/linkedoutpro.db';
+  const dataDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-  let db = null;
-  if (sqlite3) {
-    db = new sqlite3.Database(DB_PATH, (err) => {
-      if (err) { 
-        console.error('❌ DB open error:', err.message); 
-        if (!IS_VERCEL) process.exit(1);
-      }
-      console.log('✅ SQLite connected:', DB_PATH);
-    });
-  } else {
-    console.warn('❌ Database connection unavailable. Please set SUPABASE credentials on Vercel.');
-  }
+  const db = new sqlite3.Database(DB_PATH, (err) => {
+    if (err) { console.error('❌ DB open error:', err.message); process.exit(1); }
+    console.log('✅ SQLite connected:', DB_PATH);
+  });
 
-  if (db) {
-    db.serialize(() => {
-      db.run('PRAGMA journal_mode=WAL');
-      db.run('PRAGMA foreign_keys=ON');
-    });
-  }
+  db.serialize(() => {
+    db.run('PRAGMA journal_mode=WAL');
+    db.run('PRAGMA foreign_keys=ON');
+  });
 
-  const run = (sql, params = []) => new Promise((res, rej) => {
-    if (!db) return res({ changes: 0 });
+  const run = (sql, params = []) => new Promise((res, rej) =>
     db.run(sql, params, function(e) { if (e) rej(e); else res({ lastID: this.lastID, changes: this.changes }); })
-  });
-  const get = (sql, params = []) => new Promise((res, rej) => {
-    if (!db) return res(null);
+  );
+  const get = (sql, params = []) => new Promise((res, rej) =>
     db.get(sql, params, (e, row) => e ? rej(e) : res(row))
-  });
-  const all = (sql, params = []) => new Promise((res, rej) => {
-    if (!db) return res([]);
+  );
+  const all = (sql, params = []) => new Promise((res, rej) =>
     db.all(sql, params, (e, rows) => e ? rej(e) : res(rows))
-  });
+  );
 
   async function initSchema() {
     await run(`
@@ -156,7 +134,7 @@ if (IS_SUPABASE) {
       CREATE TABLE IF NOT EXISTS user_settings (
         id                   TEXT PRIMARY KEY,
         user_id              TEXT UNIQUE NOT NULL,
-        auto_post_enabled    INTEGER DEFAULT 0,
+        auto_post_enabled    INTEGER DEFAULT 1,
         posts_per_week       INTEGER DEFAULT 3,
         preferred_days       TEXT DEFAULT 'monday,wednesday,friday',
         preferred_time_hour  INTEGER DEFAULT 9,

@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Studio — LinkedOut Pro</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -33,7 +35,7 @@
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="logo">
-        <img src="/logo.png" alt="out" style="width:36px;height:36px;border-radius:8px;object-fit:cover;" onerror="this.outerHTML='<div style=&quot;background:var(--primary);color:#fff;border-radius:8px;font-weight:900;font-size:14px;padding:6px 8px;line-height:1;&quot;>out</div>'">
+        <img src="/logo.svg" alt="out" style="width:36px;height:36px;border-radius:8px;object-fit:cover;">
       </div>
 
       <nav class="sidebar-nav">
@@ -67,7 +69,6 @@
     <!-- Mobile Topbar header -->
     <div class="mobile-top-header">
       <div class="header-brand" style="display:flex;align-items:center;gap:10px;">
-        <img src="/logo.png" alt="out" style="width:32px;height:32px;border-radius:8px;object-fit:cover;" onerror="this.outerHTML='<div style=&quot;background:var(--primary);color:#fff;border-radius:6px;font-weight:900;font-size:13px;padding:4px 6px;line-height:1;&quot;>out</div>'">
         <span class="logo-text" style="font-weight:800;font-size:1.1rem;color:var(--white);letter-spacing:-0.02em;">LinkedOut<span style="color:var(--primary)">Pro</span></span>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
@@ -84,9 +85,13 @@
           <div class="forge-header">
             <h1 class="forge-title">Studio</h1>
             <div class="mode-toggle">
-              <button class="mode-btn active" id="singleBtn" onclick="setMode('single')">Single</button>
-              <button class="mode-btn" id="eventBtn" onclick="setMode('event')">Multiple</button>
+              <button class="mode-btn active" id="singleBtn" onclick="setMode('single')" title="Each image becomes its own separate LinkedIn post">1 Post / Image</button>
+              <button class="mode-btn" id="eventBtn" onclick="setMode('event')" title="All images go into one single LinkedIn post">All in 1 Post</button>
             </div>
+          </div>
+          <div id="modeBanner" style="margin:0 0 12px;padding:8px 12px;border-radius:8px;font-size:0.74rem;background:rgba(0,119,181,0.08);border:1px solid rgba(0,119,181,0.18);color:var(--text-secondary);display:flex;align-items:center;gap:8px">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span id="modeBannerText">Each image will generate its own separate LinkedIn post</span>
           </div>
 
           <div class="forge-card">
@@ -128,7 +133,7 @@
             </div>
 
             <button class="action-btn-primary full-width mt-6" id="generateBtn" onclick="generatePost()">
-              <span id="genBtnText">Forge Manifest</span>
+              <span id="genBtnText">Forge Post</span>
               <span id="genBtnLoading" class="hidden"><span class="spinner"></span></span>
             </button>
           </div>
@@ -275,7 +280,7 @@
         </div>
 
         <div class="forge-card p-0">
-          <div class="setting-row">
+          <div class="setting-row setting-row-inline">
             <div class="setting-info">
               <div class="setting-title">Auto-Posting Engine</div>
               <div class="setting-desc">Automatically publish scheduled posts without manual approval</div>
@@ -286,7 +291,7 @@
             </label>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row setting-row-inline">
             <div class="setting-info">
               <div class="setting-title">Velocity</div>
               <div class="setting-desc">Posts per week target</div>
@@ -313,18 +318,58 @@
             </div>
           </div>
 
-          <div class="setting-row">
+          <div class="setting-row setting-row-inline">
             <div class="setting-info">
               <div class="setting-title">Prime Time</div>
               <div class="setting-desc">Default auto-schedule time</div>
             </div>
-            <select class="forge-input select-sm" id="preferredHour" onchange="saveSettings(true)">
-              <option value="-1">Let Agent Decide ✨</option>
-              <option value="8">8:00 AM</option>
-              <option value="9" selected>9:00 AM</option>
-              <option value="12">12:00 PM</option>
-              <option value="18">6:00 PM</option>
-            </select>
+            <!-- Custom dark dropdown replacing native select -->
+            <div class="custom-select" id="preferredHourDrop">
+              <div class="custom-select-trigger" onclick="toggleCustomSelect('preferredHourDrop')">
+                <span id="preferredHourLabel">9:00 AM</span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="custom-select-options" id="preferredHourOptions">
+                <div class="custom-select-option" data-value="-1" onclick="selectCustomOption('preferredHourDrop', '-1', 'Let Agent Decide ✨')">Let Agent Decide ✨</div>
+                <div class="custom-select-option" data-value="8"  onclick="selectCustomOption('preferredHourDrop', '8',  '8:00 AM')">8:00 AM</div>
+                <div class="custom-select-option active" data-value="9"  onclick="selectCustomOption('preferredHourDrop', '9',  '9:00 AM')">9:00 AM</div>
+                <div class="custom-select-option" data-value="12" onclick="selectCustomOption('preferredHourDrop', '12', '12:00 PM')">12:00 PM</div>
+                <div class="custom-select-option" data-value="18" onclick="selectCustomOption('preferredHourDrop', '18', '6:00 PM')">6:00 PM</div>
+              </div>
+              <!-- Hidden real input for read by JS -->
+              <input type="hidden" id="preferredHour" value="9" />
+            </div>
+          </div>
+
+          <!-- Replay Tour -->
+          <div class="setting-row setting-row-inline">
+            <div class="setting-info">
+              <div class="setting-title">App Walkthrough</div>
+              <div class="setting-desc">Replay the interactive tour to learn about all features</div>
+            </div>
+            <button class="q-btn" onclick="startLiveTour()" style="white-space:nowrap;flex-shrink:0">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+              Replay Tour
+            </button>
+          </div>
+
+          <!-- Install App -->
+          <div class="setting-row setting-install-row" id="settingsInstallRow">
+            <div class="install-glow-ring"></div>
+            <div class="setting-info">
+              <div class="setting-title install-shimmer-title">
+                Install App
+              </div>
+              <div class="setting-desc" id="settingsInstallDesc">Add to your home screen for quick access</div>
+            </div>
+            <button class="install-action-btn" id="settingsInstallBtn" onclick="settingsInstallApp()">
+              <span class="install-arrow-wrap">
+                <svg class="install-arrow-svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
+                </svg>
+              </span>
+              <span class="install-btn-label">Install</span>
+            </button>
           </div>
         </div>
       </div>
@@ -719,6 +764,633 @@
     }
   </script>
 </div> <!-- /mainAppLayout -->
+
+<!-- ===================== ONBOARDING WALKTHROUGH ===================== -->
+<div id="onboardingOverlay" class="onboarding-overlay hidden">
+  <div class="onboarding-modal">
+
+    <!-- Progress dots -->
+    <div class="ob-dots">
+      <span class="ob-dot active" data-step="0"></span>
+      <span class="ob-dot" data-step="1"></span>
+      <span class="ob-dot" data-step="2"></span>
+      <span class="ob-dot" data-step="3"></span>
+    </div>
+
+    <!-- Step 0: Welcome -->
+    <div class="ob-step active" id="ob-step-0">
+      <div class="ob-icon-wrap" style="background:linear-gradient(135deg,#0077B5,#0095E0)">
+        <svg width="36" height="36" fill="none" viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="4" r="2" stroke="white" stroke-width="2"/></svg>
+      </div>
+      <h2 class="ob-title">Welcome to LinkedOut Pro 👋</h2>
+      <p class="ob-desc">Your AI-powered LinkedIn content engine. In 30 seconds we'll show you how to turn images into viral posts, schedule them, and grow your audience — on autopilot.</p>
+    </div>
+
+    <!-- Step 1: How to create -->
+    <div class="ob-step" id="ob-step-1">
+      <div class="ob-icon-wrap" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">
+        <svg width="36" height="36" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </div>
+      <h2 class="ob-title">Create in Seconds</h2>
+      <p class="ob-desc">Head to <strong>Studio</strong> and upload any image. Our AI reads the visual, understands the context, and crafts a professional LinkedIn post — with hashtags — instantly.</p>
+      <div class="ob-tips">
+        <div class="ob-tip"><span class="ob-tip-icon">📸</span><span><strong>1 Post / Image</strong> — Each image gets its own unique post</span></div>
+        <div class="ob-tip"><span class="ob-tip-icon">🎉</span><span><strong>All in 1 Post</strong> — Combine multiple images into one event post</span></div>
+        <div class="ob-tip"><span class="ob-tip-icon">📅</span><span><strong>Queue</strong> — Schedule posts ahead or publish live instantly</span></div>
+      </div>
+    </div>
+
+    <!-- Step 2: Notifications -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-icon-wrap" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
+        <svg width="36" height="36" fill="none" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 class="ob-title">Stay in the Loop 🔔</h2>
+      <p class="ob-desc">Get notified the moment a scheduled post goes live on LinkedIn, or if something needs your attention. Works even when the app is closed.</p>
+      <button class="ob-action-btn" id="obEnableNotifBtn" onclick="onboardingEnableNotifications()">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Enable Push Notifications
+      </button>
+      <p class="ob-skip-hint" id="obNotifSkipHint">You can always enable this later in your browser settings</p>
+    </div>
+
+    <!-- Step 3: Install App -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-icon-wrap" style="background:linear-gradient(135deg,#10b981,#059669)">
+        <svg width="36" height="36" fill="none" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 class="ob-title">Install the App 📲</h2>
+      <p class="ob-desc">Add LinkedOut Pro to your home screen for instant access — works offline, loads instantly, and feels like a native app on Android & iOS.</p>
+      <button class="ob-action-btn" id="obInstallBtn" onclick="onboardingInstallApp()" style="display:none">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Install App
+      </button>
+      <p class="ob-install-alt" id="obInstallAlt">On iOS: tap <strong>Share →</strong> then <strong>"Add to Home Screen"</strong></p>
+    </div>
+
+    <!-- Navigation -->
+    <div class="ob-nav">
+      <button class="ob-btn-skip" id="obSkipBtn" onclick="skipOnboarding()">Skip</button>
+      <button class="ob-btn-next" id="obNextBtn" onclick="nextOnboardingStep()">
+        <span id="obNextLabel">Get Started</span>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ======================== ONBOARDING WALKTHROUGH ======================== */
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.4s ease;
+}
+.onboarding-overlay.hidden { display: none; }
+
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+.onboarding-modal {
+  background: #111112;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  padding: 40px 36px 32px;
+  width: min(480px, 94vw);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+  position: relative;
+  animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(32px) scale(0.97) } to { opacity:1; transform:translateY(0) scale(1) } }
+
+.ob-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 32px; }
+.ob-dot { width: 8px; height: 8px; border-radius: 99px; background: rgba(255,255,255,0.12); transition: all 0.3s; }
+.ob-dot.active { width: 28px; background: #0077B5; }
+
+.ob-step { display: none; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
+.ob-step.active { display: flex; animation: fadeInStep 0.3s ease; }
+@keyframes fadeInStep { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+
+.ob-icon-wrap {
+  width: 80px; height: 80px; border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  margin-bottom: 4px;
+}
+
+.ob-title { font-size: 1.4rem; font-weight: 800; color: #fff; letter-spacing: -0.03em; line-height: 1.2; }
+.ob-desc { font-size: 0.9rem; color: rgba(255,255,255,0.55); line-height: 1.65; max-width: 360px; }
+.ob-desc strong { color: rgba(255,255,255,0.85); }
+
+.ob-tips { display: flex; flex-direction: column; gap: 12px; width: 100%; text-align: left; margin-top: 4px; }
+.ob-tip { display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px 16px; font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.5; }
+.ob-tip strong { color: rgba(255,255,255,0.85); }
+.ob-tip-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+.ob-action-btn {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  width: 100%; padding: 14px 24px; margin-top: 4px;
+  background: #0077B5; color: #fff;
+  border: none; border-radius: 12px;
+  font-family: var(--font); font-size: 0.875rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.ob-action-btn:hover { background: #0081C4; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,119,181,0.4); }
+.ob-action-btn.done { background: #10b981; }
+.ob-action-btn.done:hover { background: #059669; }
+
+.ob-skip-hint, .ob-install-alt {
+  font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-top: 4px; line-height: 1.5;
+}
+.ob-install-alt strong { color: rgba(255,255,255,0.5); }
+
+.ob-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); }
+.ob-btn-skip { background: none; border: none; color: rgba(255,255,255,0.3); font-family: var(--font); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 8px 12px; border-radius: 8px; transition: color 0.2s; }
+.ob-btn-skip:hover { color: rgba(255,255,255,0.6); }
+.ob-btn-next { display: flex; align-items: center; gap: 8px; background: #fff; color: #000; border: none; border-radius: 10px; padding: 12px 20px; font-family: var(--font); font-size: 0.85rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+.ob-btn-next:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,0.15); }
+
+@media (max-width: 520px) {
+  .onboarding-modal { padding: 28px 20px 24px; border-radius: 20px; }
+  .ob-title { font-size: 1.2rem; }
+  .ob-icon-wrap { width: 64px; height: 64px; border-radius: 18px; }
+  .ob-icon-wrap svg { width: 28px; height: 28px; }
+}
+</style>
+
+<!-- ===================== LIVE SPOTLIGHT TOUR ===================== -->
+<div id="tourContainer" class="hidden" aria-hidden="true">
+  <!-- SVG overlay with punch-through cutout -->
+  <svg id="tourSvg" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <mask id="tourMask">
+        <rect id="tourMaskBg" width="100%" height="100%" fill="white"/>
+        <rect id="tourCutout" rx="10" ry="10" fill="black"/>
+      </mask>
+    </defs>
+    <rect id="tourOverlay" width="100%" height="100%" fill="rgba(0,0,0,0.78)" mask="url(#tourMask)"/>
+  </svg>
+
+  <!-- Glowing ring around highlighted element -->
+  <svg id="tourRingSvg" xmlns="http://www.w3.org/2000/svg" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:10005;pointer-events:none">
+    <rect id="tourRing" rx="10" ry="10" fill="none" stroke="#0077B5" stroke-width="2.5"
+          stroke-dasharray="6 3" filter="url(#ring-glow)">
+      <animate attributeName="stroke-dashoffset" from="0" to="-18" dur="0.6s" repeatCount="indefinite"/>
+    </rect>
+    <defs>
+      <filter id="ring-glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Tooltip -->
+  <div id="tourTooltip">
+    <div id="tourArrow"></div>
+    <div class="tour-header">
+      <div class="tour-progress">
+        <span id="tourStepNum">1</span><span class="tour-of"> of 7</span>
+        <div class="tour-bar"><div id="tourBarFill"></div></div>
+      </div>
+      <button class="tour-close-x" onclick="endTour()" title="Exit tour">✕</button>
+    </div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourDesc"></p>
+    <div class="tour-nav">
+      <button class="tour-btn-back" id="tourBackBtn" onclick="tourPrev()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        Back
+      </button>
+      <button class="tour-btn-skip" onclick="endTour()">Skip tour</button>
+      <button class="tour-btn-next" id="tourNextBtn" onclick="tourNext()">
+        <span id="tourNextLabel">Next</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ======================== LIVE TOUR ======================== */
+#tourContainer { position: fixed; inset: 0; z-index: 10001; pointer-events: none; }
+#tourContainer:not(.hidden) { display: block; }
+#tourContainer.hidden { display: none; }
+
+#tourSvg {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 10001; pointer-events: all;
+}
+#tourCutout { transition: x 0.45s cubic-bezier(0.4,0,0.2,1), y 0.45s cubic-bezier(0.4,0,0.2,1), width 0.45s cubic-bezier(0.4,0,0.2,1), height 0.45s cubic-bezier(0.4,0,0.2,1); }
+#tourRing { transition: x 0.45s cubic-bezier(0.4,0,0.2,1), y 0.45s cubic-bezier(0.4,0,0.2,1), width 0.45s cubic-bezier(0.4,0,0.2,1), height 0.45s cubic-bezier(0.4,0,0.2,1); }
+
+#tourTooltip {
+  position: fixed; z-index: 10003;
+  width: min(320px, 88vw);
+  background: #0E0E10;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,119,181,0.15);
+  pointer-events: all;
+  transition: left 0.45s cubic-bezier(0.4,0,0.2,1), top 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
+}
+#tourTooltip.switching { opacity: 0; transform: scale(0.95); }
+
+#tourArrow {
+  position: absolute; width: 12px; height: 12px;
+  background: #0E0E10; border-left: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.45s cubic-bezier(0.4,0,0.2,1);
+}
+/* Arrow directions */
+#tourArrow.arrow-top    { bottom: -7px; transform: rotate(225deg); }
+#tourArrow.arrow-bottom { top: -7px;    transform: rotate(45deg); }
+#tourArrow.arrow-left   { right: -7px;  transform: rotate(135deg); }
+#tourArrow.arrow-right  { left: -7px;   transform: rotate(-45deg); }
+
+.tour-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.tour-progress { display: flex; align-items: center; gap: 8px; flex: 1; }
+#tourStepNum { font-size: 0.85rem; font-weight: 800; color: #0077B5; }
+.tour-of { font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-right: 4px; }
+.tour-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+#tourBarFill { height: 100%; background: #0077B5; border-radius: 99px; transition: width 0.4s ease; }
+.tour-close-x { background: none; border: none; color: rgba(255,255,255,0.25); font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: color 0.15s; pointer-events: all; }
+.tour-close-x:hover { color: rgba(255,255,255,0.7); }
+
+#tourTitle { font-size: 1rem; font-weight: 800; color: #fff; margin: 0 0 6px; letter-spacing: -0.02em; }
+#tourDesc  { font-size: 0.8rem; color: rgba(255,255,255,0.5); line-height: 1.6; margin: 0 0 16px; }
+
+.tour-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-btn-back  { display: flex; align-items: center; gap: 5px; background: none; border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); font-family: var(--font); font-size: 0.75rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s; pointer-events: all; }
+.tour-btn-back:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+.tour-btn-skip  { background: none; border: none; color: rgba(255,255,255,0.2); font-family: var(--font); font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 8px; transition: color 0.15s; pointer-events: all; }
+.tour-btn-skip:hover { color: rgba(255,255,255,0.5); }
+.tour-btn-next  { display: flex; align-items: center; gap: 6px; background: #fff; color: #000; border: none; font-family: var(--font); font-size: 0.75rem; font-weight: 800; padding: 9px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s; pointer-events: all; }
+.tour-btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,255,255,0.15); }
+.tour-btn-next.is-last { background: #0077B5; color: #fff; }
+.tour-btn-next.is-last:hover { background: #0081C4; box-shadow: 0 6px 20px rgba(0,119,181,0.4); }
+
+/* Highlighted element gets a z-index bump */
+.tour-highlighted {
+  position: relative !important;
+  z-index: 10002 !important;
+  border-radius: 8px;
+  pointer-events: none !important;
+  outline: 2px solid rgba(0,119,181,0.6) !important;
+  outline-offset: 3px;
+}
+/* Dim sibling nav items during tour */
+.tour-nav-dim { opacity: 0.3 !important; transition: opacity 0.3s; }
+
+/* ======================== INSTALL APP ANIMATIONS ======================== */
+@keyframes shimmer-slide {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes arrow-bounce {
+  0%, 100% { transform: translateY(0); }
+  40%       { transform: translateY(4px); }
+  60%       { transform: translateY(2px); }
+}
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0; transform: scale(1); }
+  50%       { opacity: 1; transform: scale(1.04); }
+}
+
+.setting-install-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(0,119,181,0.06) 0%, rgba(0,200,255,0.04) 100%);
+  border: 1px solid rgba(0,119,181,0.15);
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  transition: border-color 0.3s, background 0.3s;
+}
+.setting-install-row:hover {
+  border-color: rgba(0,119,181,0.35);
+  background: linear-gradient(135deg, rgba(0,119,181,0.1) 0%, rgba(0,200,255,0.07) 100%);
+}
+
+/* Animated glow ring overlay */
+.install-glow-ring {
+  position: absolute; inset: -1px; border-radius: 14px; z-index: 0; pointer-events: none;
+  border: 1.5px solid rgba(0,119,181,0.3);
+  animation: ring-pulse 3s ease-in-out infinite;
+}
+
+/* Shimmer title */
+.install-shimmer-title {
+  font-size: 0.9rem; font-weight: 800; letter-spacing: -0.02em;
+  background: linear-gradient(90deg,
+    #fff 0%, #fff 30%,
+    #0077B5 45%, #00C8FF 55%,
+    #fff 70%, #fff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-slide 3s linear infinite;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* Install button */
+.install-action-btn {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, #0077B5, #00A0DC);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 9px 18px; font-family: var(--font); font-size: 0.78rem; font-weight: 800;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(0,119,181,0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.install-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,119,181,0.55);
+}
+.install-action-btn:active { transform: translateY(0); }
+
+/* Bouncing down-arrow icon */
+.install-arrow-svg {
+  animation: arrow-bounce 1.4s ease-in-out infinite;
+}
+</style>
+
+<script>
+/* ======================== LIVE SPOTLIGHT TOUR ======================== */
+const TOUR = [
+  {
+    target: '.mode-toggle',
+    tab: 'create',
+    title: '1 of 7 — Posting Mode',
+    desc: '"1 Post / Image" creates a separate LinkedIn post for each uploaded image. "All in 1 Post" combines them into one. Tap to switch anytime.',
+    pos: 'bottom'
+  },
+  {
+    target: '#uploadZone',
+    tab: 'create',
+    title: '2 of 7 — Upload Your Images',
+    desc: 'Drag & drop images here or tap to browse. Upload up to 10 photos. On mobile, your camera roll opens automatically.',
+    pos: 'bottom'
+  },
+  {
+    target: '#contextInput',
+    tab: 'create',
+    title: '3 of 7 — Add Context',
+    desc: 'Tell the AI about this moment — "Won 1st at national hackathon" or "Team retreat in Goa". The more detail, the better the post.',
+    pos: 'top'
+  },
+  {
+    target: '.forge-config-row',
+    tab: 'create',
+    title: '4 of 7 — Intent & Tone',
+    desc: 'Pick what kind of post you want (Achievement, Story, Announcement..) and the writing tone (Professional, Bold, Casual, Humble).',
+    pos: 'top'
+  },
+  {
+    target: '#generateBtn',
+    tab: 'create',
+    title: '5 of 7 — Forge Your Post ⚡',
+    desc: 'Click this to generate. The AI reads your image + context and writes a full LinkedIn post with hashtags — in seconds.',
+    pos: 'top'
+  },
+  {
+    target: '[data-tab="queue"]',
+    tab: null,
+    title: '6 of 7 — Content Queue',
+    desc: 'All your posts live here — drafts, scheduled, and published. One-click to schedule at the perfect time or go live instantly.',
+    pos: 'right'
+  },
+  {
+    target: '[data-tab="settings"]',
+    tab: null,
+    title: '7 of 7 — Auto-Post Settings',
+    desc: 'Set posting frequency, preferred days, and a posting time. Enable Auto-Posting and the app will publish your queue on autopilot.',
+    pos: 'right'
+  }
+];
+
+let _tourStep = 0;
+let _tourActive = false;
+let _prevHighlight = null;
+const PAD = 12; // spotlight padding
+
+function startLiveTour() {
+  _tourActive = true;
+  _tourStep = 0;
+  document.getElementById('tourContainer').classList.remove('hidden');
+  _renderTourStep();
+}
+
+function endTour() {
+  _tourActive = false;
+  document.getElementById('tourContainer').classList.add('hidden');
+  _clearHighlight();
+  // After tour, show the notification + install onboarding steps
+  localStorage.setItem('lop_onboarded_' + (currentUser?.id || 'guest'), '1');
+}
+
+function tourNext() {
+  if (_tourStep < TOUR.length - 1) { _tourStep++; _renderTourStep(); }
+  else endTour();
+}
+
+function tourPrev() {
+  if (_tourStep > 0) { _tourStep--; _renderTourStep(); }
+}
+
+function _clearHighlight() {
+  if (_prevHighlight) {
+    _prevHighlight.classList.remove('tour-highlighted');
+    _prevHighlight = null;
+  }
+  // Always reset mobile nav z-index and dimming
+  const mobileNav = document.querySelector('.mobile-nav');
+  if (mobileNav) {
+    mobileNav.style.zIndex = '';
+    mobileNav.querySelectorAll('.tour-nav-dim').forEach(el => el.classList.remove('tour-nav-dim'));
+  }
+}
+
+async function _renderTourStep() {
+  const step = TOUR[_tourStep];
+
+  // Switch tab if needed
+  if (step.tab) {
+    const navBtn = document.querySelector(`[data-tab="${step.tab}"]`);
+    if (navBtn) { switchTab(step.tab, navBtn); }
+    await _sleep(150);
+  }
+
+  // Find target — prefer visible element
+  let el = _findVisible(step.target);
+  if (!el) return;
+
+  // Scroll element into view
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  await _sleep(350);
+
+  // Highlight
+  _clearHighlight();
+  el.classList.add('tour-highlighted');
+  _prevHighlight = el;
+
+  // Get rect AFTER scroll
+  const rect = el.getBoundingClientRect();
+
+  // Position SVG cutout
+  const x = rect.left - PAD, y = rect.top - PAD;
+  const w = rect.width + PAD * 2, h = rect.height + PAD * 2;
+  _setSvgRect('tourCutout', x, y, w, h);
+  _setSvgRect('tourRing', x - 1, y - 1, w + 2, h + 2);
+
+  // Auto-fix position: if element is in the mobile bottom nav → always use 'top'
+  let resolvedPos = step.pos;
+  if (el.closest('.mobile-nav')) resolvedPos = 'top';
+  // Also flip 'right' to 'top' on narrow screens (no horizontal room for sidebar tooltip)
+  if (resolvedPos === 'right' && window.innerWidth < 900) resolvedPos = 'top';
+
+  // Update tooltip content
+  const tooltip = document.getElementById('tourTooltip');
+  tooltip.classList.add('switching');
+
+  await _sleep(120);
+
+  document.getElementById('tourTitle').textContent = step.title;
+  document.getElementById('tourDesc').textContent  = step.desc;
+  document.getElementById('tourStepNum').textContent = _tourStep + 1;
+  document.querySelector('.tour-of').textContent = ` of ${TOUR.length}`;
+  document.getElementById('tourBarFill').style.width = ((_tourStep + 1) / TOUR.length * 100) + '%';
+
+  // Next/Back buttons
+  const isLast = _tourStep === TOUR.length - 1;
+  const nextBtn = document.getElementById('tourNextBtn');
+  document.getElementById('tourNextLabel').textContent = isLast ? 'Finish' : 'Next';
+  nextBtn.classList.toggle('is-last', isLast);
+  document.getElementById('tourBackBtn').style.opacity = _tourStep === 0 ? '0.3' : '1';
+  document.getElementById('tourBackBtn').disabled = _tourStep === 0;
+
+  // Position tooltip near element
+  _positionTooltip(rect, resolvedPos);
+
+  // If the target is the mobile nav, raise it above the tour overlay
+  const mobileNav = document.querySelector('.mobile-nav');
+  if (mobileNav) {
+    const inMobileNav = !!el.closest('.mobile-nav');
+    mobileNav.style.zIndex = inMobileNav ? '10004' : '';
+    // Dim sibling nav items so the highlighted one stands out
+    mobileNav.querySelectorAll('.mobile-nav-item').forEach(item => {
+      if (inMobileNav && item !== el) item.classList.add('tour-nav-dim');
+      else item.classList.remove('tour-nav-dim');
+    });
+  }
+
+  tooltip.style.transition = 'left 0.45s cubic-bezier(0.4,0,0.2,1), top 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.25s, transform 0.25s';
+  tooltip.style.opacity = '1';
+  tooltip.style.transform = 'scale(1)';
+  tooltip.classList.remove('switching');
+}
+
+function _positionTooltip(rect, preferredPos) {
+  const tooltip = document.getElementById('tourTooltip');
+  const arrow   = document.getElementById('tourArrow');
+  const TW = 320, TH = 160; // approx tooltip size
+  const VP_W = window.innerWidth, VP_H = window.innerHeight;
+  const GAP = 16;
+
+  let pos = preferredPos;
+  // Auto-flip if no space
+  if (pos === 'bottom' && rect.bottom + TH + GAP > VP_H) pos = 'top';
+  if (pos === 'top'    && rect.top    - TH - GAP < 0)    pos = 'bottom';
+  if (pos === 'right'  && rect.right  + TW + GAP > VP_W) pos = 'left';
+  if (pos === 'left'   && rect.left   - TW - GAP < 0)    pos = 'right';
+
+  let top, left;
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  switch(pos) {
+    case 'bottom':
+      top  = rect.bottom + PAD + GAP;
+      left = Math.max(12, Math.min(cx - TW / 2, VP_W - TW - 12));
+      arrow.className = 'arrow-bottom';
+      arrow.style.left = (cx - left - 6) + 'px';
+      arrow.style.right = '';
+      arrow.style.top = '';
+      arrow.style.bottom = '';
+      break;
+    case 'top':
+      top  = rect.top - PAD - GAP - TH;
+      left = Math.max(12, Math.min(cx - TW / 2, VP_W - TW - 12));
+      arrow.className = 'arrow-top';
+      arrow.style.left = (cx - left - 6) + 'px';
+      arrow.style.right = '';
+      arrow.style.bottom = '';
+      arrow.style.top = '';
+      break;
+    case 'right':
+      left = rect.right + PAD + GAP;
+      top  = Math.max(60, Math.min(cy - TH / 2, VP_H - TH - 12));
+      arrow.className = 'arrow-right';
+      arrow.style.top = (cy - top - 6) + 'px';
+      arrow.style.left = '';
+      arrow.style.right = '';
+      break;
+    case 'left':
+      left = rect.left - PAD - GAP - TW;
+      top  = Math.max(60, Math.min(cy - TH / 2, VP_H - TH - 12));
+      arrow.className = 'arrow-left';
+      arrow.style.top = (cy - top - 6) + 'px';
+      arrow.style.left = '';
+      arrow.style.right = '';
+      break;
+  }
+
+  // Clamp to viewport
+  left = Math.max(12, Math.min(left, VP_W - TW - 12));
+  top  = Math.max(60, Math.min(top, VP_H - 200));
+  tooltip.style.left = left + 'px';
+  tooltip.style.top  = top  + 'px';
+}
+
+function _setSvgRect(id, x, y, w, h) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.setAttribute('x', Math.round(x));
+  el.setAttribute('y', Math.round(y));
+  el.setAttribute('width', Math.round(w));
+  el.setAttribute('height', Math.round(h));
+}
+
+function _findVisible(selector) {
+  const all = document.querySelectorAll(selector);
+  for (const el of all) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && getComputedStyle(el).display !== 'none') return el;
+  }
+  return all[0] || null;
+}
+
+function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Reposition on resize
+window.addEventListener('resize', () => {
+  if (_tourActive && TOUR[_tourStep]) {
+    const el = _findVisible(TOUR[_tourStep].target);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = rect.left - PAD, y = rect.top - PAD;
+    const w = rect.width + PAD * 2, h = rect.height + PAD * 2;
+    _setSvgRect('tourCutout', x, y, w, h);
+    _setSvgRect('tourRing', x - 1, y - 1, w + 2, h + 2);
+    _positionTooltip(rect, TOUR[_tourStep].pos);
+  }
+});
+</script>
+
 </body>
 </html>
 

@@ -3,29 +3,37 @@
 const supabase = require('../database/supabase');
 const fs       = require('fs');
 const path     = require('path');
+const os       = require('os');
 
 const BUCKET      = process.env.SUPABASE_STORAGE_BUCKET || 'post-images';
-const IS_PROD     = process.env.NODE_ENV === 'production';
-const os          = require('os');
 const UPLOADS_DIR = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
 
+// Use Supabase Storage whenever Supabase is configured — regardless of NODE_ENV.
+// This ensures local dev with Supabase also has images in cloud storage,
+// so they're accessible when Vercel publishes the post.
+const USE_SUPABASE_STORAGE = !!(
+  process.env.SUPABASE_URL &&
+  process.env.SUPABASE_URL !== 'https://your-project-ref.supabase.co' &&
+  process.env.SUPABASE_SERVICE_KEY
+);
+
 /**
- * Upload an image file to Supabase Storage (production)
- * or keep it on disk (local dev)
+ * Upload an image file to Supabase Storage (when Supabase is configured)
+ * or keep it on disk (pure local dev without Supabase)
  *
- * @returns {{ url: string, storagePath: string|null, localPath: string|null }}
+ * @returns {{ url: string|null, storagePath: string|null, localPath: string }}
  */
 async function uploadImage(localFilePath, filename, mimetype) {
-  if (!IS_PROD) {
-    // Dev: file is already on disk from multer, return local path
+  if (!USE_SUPABASE_STORAGE) {
+    // Pure local dev (no Supabase): file stays on disk only
     return {
-      url:         null,   // served via /uploads express static in dev
+      url:         null,
       storagePath: null,
-      localPath:   localFilePath
+      localPath:   path.resolve(localFilePath)
     };
   }
 
-  // Production: stream to Supabase Storage
+  // Supabase configured: upload so the image is reachable from Vercel at publish time
   const fileBuffer  = fs.readFileSync(localFilePath);
   const storagePath = `posts/${Date.now()}_${filename}`;
 
@@ -42,13 +50,10 @@ async function uploadImage(localFilePath, filename, mimetype) {
   // Get public URL
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
-  // Keep local file on disk as a fast fallback — scheduler will use it if available
-  // (Only delete if truly needed to save space, but don't silently break images)
-
   return {
     url:         data.publicUrl,
     storagePath,
-    localPath:   localFilePath   // keep local path so scheduler can use it directly
+    localPath:   path.resolve(localFilePath)  // absolute local path as fast fallback
   };
 }
 

@@ -66,7 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_post_images_post_id ON post_images(post_id);
 CREATE TABLE IF NOT EXISTS user_settings (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id              UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  auto_post_enabled    BOOLEAN DEFAULT FALSE,
+  auto_post_enabled    BOOLEAN DEFAULT TRUE,
   posts_per_week       INTEGER DEFAULT 3,
   preferred_days       TEXT DEFAULT 'monday,wednesday,friday',
   preferred_time_hour  INTEGER DEFAULT 9,

@@ -201,9 +201,7 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
     const fullPost = { ...post, access_token: user.access_token, linkedin_id: user.linkedin_id };
     const result = await publishSinglePost(fullPost);
-    if (!result || result.success === false) {
-      return res.status(500).json({ error: result?.error || 'LinkedIn connection failed' });
-    }
+    if (!result) return res.status(500).json({ error: 'Failed to publish to LinkedIn. Check server logs.' });
     const updated = await getPost(post.id, req.user.id);
     res.json({ success: true, post: updated });
   } catch (e) {

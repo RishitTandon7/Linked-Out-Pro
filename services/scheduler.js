@@ -6,7 +6,10 @@ const { IS_SUPABASE, supabase: sb, run, all } = require('../database/db');
 const { publishPost } = require('./linkedin');
 const { getLocalPath, deleteImage } = require('./storage');
 const { notifyPostPublished, notifyPostFailed } = require('./notifications');
-const fs = require('fs');
+const fs   = require('fs');
+const path = require('path');
+const os   = require('os');
+const UPLOADS_DIR = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
 
 const IS_VERCEL = process.env.VERCEL === '1';
 let schedulerRunning = false;
@@ -43,7 +46,7 @@ async function publishDuePosts() {
     let duePosts = [];
 
     if (IS_SUPABASE) {
-      // Join posts + users via two queries (Supabase REST doesn't support JOIN)
+      // Join posts + users via two queries
       const { data: posts } = await sb.from('posts')
         .select('*')
         .eq('status', 'scheduled')
@@ -51,20 +54,32 @@ async function publishDuePosts() {
 
       if (!posts || posts.length === 0) return result;
 
-      // Fetch user tokens for each unique user_id
       const userIds = [...new Set(posts.map(p => p.user_id))];
+      
+      // Get users
       const { data: users } = await sb.from('users')
         .select('id, access_token, linkedin_id')
         .in('id', userIds);
+        
+      // Get settings to check auto_post_enabled
+      const { data: settings } = await sb.from('user_settings')
+        .select('user_id, auto_post_enabled')
+        .in('user_id', userIds);
 
       const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
-      duePosts = posts.map(p => ({ ...p, ...userMap[p.user_id] }));
+      const settingsMap = Object.fromEntries((settings || []).map(s => [s.user_id, s.auto_post_enabled]));
+
+      duePosts = posts
+        .filter(p => settingsMap[p.user_id] !== false) // Only map if auto-post is enabled
+        .map(p => ({ ...p, ...userMap[p.user_id] }));
+        
     } else {
       duePosts = await all(`
         SELECT p.*, u.access_token, u.linkedin_id
         FROM posts p
         JOIN users u ON p.user_id = u.id
-        WHERE p.status = 'scheduled' AND p.scheduled_at <= ?
+        JOIN user_settings s ON p.user_id = s.user_id
+        WHERE p.status = 'scheduled' AND p.scheduled_at <= ? AND s.auto_post_enabled = 1
       `, [now]);
     }
 
@@ -101,18 +116,32 @@ async function publishSinglePost(post) {
     for (const img of images) {
       let filePath = getLocalPath(img);
 
+      // Resolve relative paths (e.g. './uploads/abc.jpg') to absolute
+      if (!path.isAbsolute(filePath)) {
+        filePath = path.resolve(filePath);
+      }
+
+      // Fallback: try UPLOADS_DIR + filename if the original path is missing
+      if (!fs.existsSync(filePath) && img.filename) {
+        const fallback = path.join(path.resolve(UPLOADS_DIR), img.filename);
+        if (fs.existsSync(fallback)) {
+          filePath = fallback;
+          console.log(`📁 Using fallback path for image ${img.filename}`);
+        }
+      }
+
       // On Vercel, /tmp files from a previous invocation may be gone.
       // Re-download from Supabase Storage if the local file is missing.
       if (!fs.existsSync(filePath)) {
         const url = img.storage_url;
         if (!url) {
-          console.warn(`⚠️ Image ${img.id} has no storage_url and local file missing — skipping`);
+          console.warn(`⚠️ Image ${img.id} (${img.filename}) has no storage_url and local file missing (checked: ${filePath}) — skipping`);
           continue;
         }
         try {
           const axios = require('axios');
           const resp  = await axios.get(url, { responseType: 'arraybuffer' });
-          filePath = require('path').join(require('os').tmpdir(), img.filename || `img_${img.id}`);
+          filePath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
           fs.writeFileSync(filePath, resp.data);
           console.log(`📥 Re-downloaded image from Supabase Storage: ${img.filename}`);
         } catch (dlErr) {
@@ -121,6 +150,7 @@ async function publishSinglePost(post) {
         }
       }
 
+      console.log(`📸 Attaching image to LinkedIn post: ${filePath}`);
       imageFiles.push({ path: filePath, mimetype: img.mimetype });
     }
 
@@ -171,7 +201,7 @@ async function publishSinglePost(post) {
       await notifyPostPublished(post.user_id, post.id);
     } catch (err) { console.warn('Could not send success push:', err.message); }
 
-    return { success: true };
+    return true;
 
   } catch (e) {
     console.error(`❌ Failed to publish post ${post.id}:`, e.message);
@@ -187,7 +217,7 @@ async function publishSinglePost(post) {
       await notifyPostFailed(post.user_id, e.message);
     } catch (err) { console.warn('Could not send error push:', err.message); }
 
-    return { success: false, error: e.message };
+    return false;
   }
 }
 

@@ -58,7 +58,9 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         hashtags: result.hashtags, intent, tone, ai_analysis: result.analysis,
         status: 'draft', created_at: now, updated_at: now
       });
-      if (pErr) throw new Error(pErr.message);
+      if (pErr) throw new Error('Post insert failed: ' + pErr.message);
+
+      console.log(`📝 Post ${postId} created. Saving ${req.files.length} image(s)...`);
 
       for (let i = 0; i < req.files.length; i++) {
         const f = req.files[i];
@@ -69,18 +71,37 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
           const stored = await uploadImage(f.path, f.filename, f.mimetype);
           storageUrl  = stored.url;
           storagePath = stored.storagePath;
-          localPath   = stored.localPath || f.path;  // keep whichever path is valid
+          localPath   = stored.localPath || f.path;
+          console.log(`☁️  Image ${i} uploaded to storage: ${storageUrl || localPath}`);
         } catch (uploadErr) {
-          console.warn('Supabase Storage upload failed:', uploadErr.message);
-          // Keep localPath = f.path so the image can still be published from disk
+          console.warn(`⚠️  Supabase Storage upload failed for image ${i}:`, uploadErr.message);
         }
 
-        await sb.from('post_images').insert({
+        // Try full insert first; if optional columns are missing in the live DB, retry without them
+        const fullRecord = {
           id: crypto.randomUUID(), post_id: postId, filename: f.filename,
           mimetype: f.mimetype, size: f.size, sort_order: i,
           storage_url: storageUrl, storage_path: storagePath, local_path: localPath,
           created_at: now
-        });
+        };
+        let { error: imgErr } = await sb.from('post_images').insert(fullRecord);
+
+        // Graceful fallback: if DB doesn't have storage_path/local_path columns yet, insert without them
+        if (imgErr && imgErr.code === 'PGRST204') {
+          console.warn(`⚠️  Optional columns missing in post_images — inserting without storage_path/local_path. Run migration SQL to add them.`);
+          const minimalRecord = {
+            id: fullRecord.id, post_id: postId, filename: f.filename,
+            mimetype: f.mimetype, size: f.size, sort_order: i,
+            storage_url: storageUrl, created_at: now
+          };
+          ({ error: imgErr } = await sb.from('post_images').insert(minimalRecord));
+        }
+
+        if (imgErr) {
+          console.error(`❌ post_images insert failed for image ${i}:`, imgErr.message, imgErr);
+          throw new Error('Image save failed: ' + imgErr.message);
+        }
+        console.log(`✅ Image ${i} (${f.filename}) saved to post_images`);
       }
     } else {
       await run(`
@@ -88,12 +109,17 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
       `, [postId, req.user.id, result.postText, result.hashtags, intent, tone, result.analysis, now, now]);
 
+      console.log(`📝 Post ${postId} created (SQLite). Saving ${req.files.length} image(s)...`);
+
       for (let i = 0; i < req.files.length; i++) {
         const f = req.files[i];
+        // Always store absolute path so we can find the file later
+        const absPath = path.resolve(f.path);
         await run(`
           INSERT INTO post_images (id, post_id, filename, mimetype, size, sort_order, local_path, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, i, f.path, now]);
+        `, [crypto.randomUUID(), postId, f.filename, f.mimetype, f.size, i, absPath, now]);
+        console.log(`✅ Image ${i} (${f.filename}) saved at ${absPath}`);
       }
     }
 
