@@ -25,9 +25,9 @@ function startScheduler() {
   schedulerRunning = true;
 
   const cron = require('node-cron');
-  console.log('🕐 Post scheduler started (checks every 5 minutes)');
+  console.log('🕐 Post scheduler started (checks every minute)');
 
-  cron.schedule('*/5 * * * *', async () => {
+  cron.schedule('* * * * *', async () => {
     await publishDuePosts();
   });
 

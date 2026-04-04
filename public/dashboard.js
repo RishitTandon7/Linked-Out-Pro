@@ -958,6 +958,68 @@ async function unschedulePost(id) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+// ---- Queue Inline Scheduling ----
+function openScheduleFromQueue(id) {
+  const card = document.getElementById(`postcard-${id}`);
+  if (!card) return;
+  const actionsWrap = card.querySelector('.q-actions');
+  
+  // Save original HTML to allow canceling
+  if (!actionsWrap.dataset.originalHtml) {
+    actionsWrap.dataset.originalHtml = actionsWrap.innerHTML;
+  }
+  
+  // Set default datetime to tomorrow 9am (similar to setDefaultDateTime logic)
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  let hourStr = document.getElementById('preferredHour')?.value || '9';
+  let hour = parseInt(hourStr);
+  if (isNaN(hour) || hour === -1) hour = 9;
+  d.setHours(hour, 0, 0, 0);
+  
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const defaultDt = `${y}-${m}-${day}T${h}:00`;
+
+  actionsWrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap">
+      <input type="datetime-local" id="queue-dt-${id}" class="forge-input date-input" value="${defaultDt}" style="flex:1;min-width:140px;padding:6px;font-size:0.75rem" />
+      <button class="q-btn primary" onclick="queueScheduleConfirm('${id}')">Confirm</button>
+      <button class="q-btn" onclick="queueScheduleCancel('${id}')">Cancel</button>
+    </div>
+  `;
+}
+
+function queueScheduleCancel(id) {
+  const card = document.getElementById(`postcard-${id}`);
+  if (!card) return;
+  const actionsWrap = card.querySelector('.q-actions');
+  actionsWrap.innerHTML = actionsWrap.dataset.originalHtml;
+}
+
+async function queueScheduleConfirm(id) {
+  const dtInput = document.getElementById(`queue-dt-${id}`).value;
+  if (!dtInput) { showToast('Pick a date and time', 'error'); return; }
+  
+  const [datePart, timePart] = dtInput.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute]     = timePart.split(':').map(Number);
+  const localDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  const scheduledAtMs = localDate.getTime();
+
+  if (isNaN(scheduledAtMs) || scheduledAtMs <= Date.now()) {
+    showToast('Please pick a future date and time', 'error');
+    return;
+  }
+
+  try {
+    await api(`/api/posts/${id}/schedule`, 'POST', { scheduledAt: Math.floor(scheduledAtMs / 1000) });
+    showToast('✓ Post scheduled!', 'success');
+    loadStats(); loadPosts(currentFilter);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 async function deletePost(id) {
   if (!confirm('Delete this post?')) return;
   try {
