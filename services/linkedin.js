@@ -1,12 +1,15 @@
 // services/linkedin.js — LinkedIn OAuth + posting service
+// Uses the NEW LinkedIn REST Posts API (202501) — NOT the deprecated v2/ugcPosts
 const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
+const fs    = require('fs');
 
 const LI_CLIENT_ID     = (process.env.LINKEDIN_CLIENT_ID     || '').trim();
 const LI_CLIENT_SECRET = (process.env.LINKEDIN_CLIENT_SECRET || '').trim();
 const LI_CALLBACK_URL  = (process.env.LINKEDIN_CALLBACK_URL  || '').trim();
 
+// LinkedIn API version header (YYYYMM format)
+// See: https://learn.microsoft.com/en-us/linkedin/shared/api-guide/versioning
+const LI_VERSION = '202501';
 
 // LinkedIn OAuth Scopes needed:
 //   openid, profile, email  → get user info
@@ -68,60 +71,77 @@ async function getUserProfile(accessToken) {
 }
 
 /**
- * Upload an image to LinkedIn and return the asset URN
+ * Initialize an image upload with LinkedIn and get the upload URL + image URN.
+ * Uses the new REST Images API (replaces deprecated v2/assets?action=registerUpload).
+ */
+async function initializeImageUpload(accessToken, linkedinId) {
+  const res = await axios.post(
+    'https://api.linkedin.com/rest/images?action=initializeUpload',
+    {
+      initializeUploadRequest: {
+        owner: `urn:li:person:${linkedinId}`
+      }
+    },
+    {
+      headers: {
+        Authorization:               `Bearer ${accessToken}`,
+        'Content-Type':              'application/json',
+        'LinkedIn-Version':          LI_VERSION,
+        'X-Restli-Protocol-Version': '2.0.0'
+      }
+    }
+  );
+
+  const value = res.data?.value;
+  if (!value?.uploadUrl || !value?.image) {
+    throw new Error('LinkedIn initializeUpload: missing uploadUrl or image URN in response');
+  }
+
+  return {
+    uploadUrl: value.uploadUrl,   // PUT binary here
+    imageUrn:  value.image        // e.g. "urn:li:image:C5622AQF..."
+  };
+}
+
+/**
+ * Upload an image to LinkedIn and return the image URN.
+ * Uses the new REST Images API.
  */
 async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetype) {
   try {
-    // Step 1: Register the upload
-    const registerRes = await axios.post(
-      'https://api.linkedin.com/v2/assets?action=registerUpload',
-      {
-        registerUploadRequest: {
-          owner: `urn:li:person:${linkedinId}`,
-          recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
-          serviceRelationships: [{
-            identifier: 'urn:li:userGeneratedContent',
-            relationshipType: 'OWNER'
-          }],
-          supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD']
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'X-Restli-Protocol-Version': '2.0.0'
-        }
-      }
-    );
+    // Step 1: Initialize upload — get upload URL and image URN
+    const { uploadUrl, imageUrn } = await initializeImageUpload(accessToken, linkedinId);
+    console.log(`📡 LinkedIn image URN allocated: ${imageUrn}`);
 
-    const uploadUrl = registerRes.data.value.uploadMechanism
-      ['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
-    const assetUrn = registerRes.data.value.asset;
-
-    // Step 2: Upload the binary image
+    // Step 2: Upload the binary image via PUT
     const imageBuffer = fs.readFileSync(imagePath);
     await axios.put(uploadUrl, imageBuffer, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': mimetype || 'image/jpeg'
-      }
+        Authorization:      `Bearer ${accessToken}`,
+        'Content-Type':     mimetype || 'image/jpeg',
+        'LinkedIn-Version': LI_VERSION
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
     });
 
-    return assetUrn;
+    console.log(`✅ Image uploaded to LinkedIn: ${imageUrn}`);
+    return imageUrn;
 
   } catch (err) {
-    console.error('LinkedIn Image Upload Detail Error:', {
-      msg: err.message,
+    console.error('LinkedIn Image Upload Error:', {
+      msg:    err.message,
       status: err.response?.status,
-      data: err.response?.data
+      data:   JSON.stringify(err.response?.data)
     });
-    throw new Error(`LinkedIn Image Sync Failed: ${err.response?.data?.message || err.message}`);
+    throw new Error(`LinkedIn Image Upload Failed: ${err.response?.data?.message || err.message}`);
   }
 }
 
 /**
- * Publish a post to LinkedIn
+ * Publish a post to LinkedIn using the new REST Posts API.
+ * Replaces deprecated v2/ugcPosts.
+ *
  * @param {string} accessToken
  * @param {string} linkedinId
  * @param {string} postText
@@ -130,54 +150,68 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
  */
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
   const authorUrn = `urn:li:person:${linkedinId}`;
-  const fullText  = hashtags ? `${postText}\n\n${hashtags}` : postText;
+  const commentary = hashtags ? `${postText}\n\n${hashtags}` : postText;
 
-  let shareMediaCategory = 'NONE';
-  let media = [];
-
-  // Upload images if provided
+  // Upload images first (if any)
+  const imageUrns = [];
   if (images && images.length > 0) {
-    shareMediaCategory = 'IMAGE';
     for (const img of images) {
-      try {
-        console.log(`📤 Syncing image to LinkedIn: ${img.path}`);
-        const assetUrn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
-        media.push({
-          status: 'READY',
-          media:  assetUrn
-        });
-      } catch (e) {
-        console.error('❌ LinkedIn Media Sync Fault:', e.message);
-        throw e; // Stop here! Don't post text if images are intended but failing.
-      }
+      console.log(`📤 Uploading image to LinkedIn: ${img.path}`);
+      const urn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
+      imageUrns.push(urn);
     }
   }
 
-  const ugcPost = {
+  // Build the post body per the new REST Posts API schema
+  // Docs: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
+  const postBody = {
     author:         authorUrn,
-    lifecycleState: 'PUBLISHED',
-    specificContent: {
-      'com.linkedin.ugc.ShareContent': {
-        shareCommentary:    { text: fullText },
-        shareMediaCategory,
-        ...(media.length > 0 ? { media } : {})
-      }
+    commentary,
+    visibility:     'PUBLIC',
+    distribution: {
+      feedDistribution:             'MAIN_FEED',
+      targetEntities:               [],
+      thirdPartyDistributionChannels: []
     },
-    visibility: {
-      'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC'
-    }
+    lifecycleState:              'PUBLISHED',
+    isReshareDisabledByAuthor:   false
   };
 
-  const res = await axios.post('https://api.linkedin.com/v2/ugcPosts', ugcPost, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'X-Restli-Protocol-Version': '2.0.0'
-    }
-  });
+  if (imageUrns.length === 1) {
+    // Single image post
+    postBody.content = {
+      media: {
+        id: imageUrns[0]
+      }
+    };
+  } else if (imageUrns.length > 1) {
+    // Multi-image post (up to 9 images)
+    postBody.content = {
+      multiImage: {
+        images: imageUrns.map(id => ({ id, altText: '' }))
+      }
+    };
+  }
+  // No content key = text-only post
 
-  // The post ID is in the X-RestLi-Id header
+  console.log(`📝 Posting to LinkedIn REST API as ${authorUrn}`);
+
+  const res = await axios.post(
+    'https://api.linkedin.com/rest/posts',
+    postBody,
+    {
+      headers: {
+        Authorization:               `Bearer ${accessToken}`,
+        'Content-Type':              'application/json',
+        'LinkedIn-Version':          LI_VERSION,
+        'X-Restli-Protocol-Version': '2.0.0'
+      }
+    }
+  );
+
+  // The post ID is returned in the x-restli-id header (or the id field)
   const postId = res.headers['x-restli-id'] || res.data?.id || 'unknown';
+  console.log(`✅ Post created on LinkedIn: ${postId}`);
   return postId;
 }
 

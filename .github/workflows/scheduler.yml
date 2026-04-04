@@ -1,32 +1,72 @@
-name: Auto-Publish Scheduler
+# .github/workflows/scheduler.yml
+# Runs every 5 minutes and hits /api/cron/trigger to publish any due scheduled posts.
+#
+# REQUIRED SECRETS (GitHub repo → Settings → Secrets and variables → Actions):
+#   CRON_SECRET  — same value as CRON_SECRET in your Vercel environment variables
+#   APP_BASE_URL — your Vercel deployment URL, e.g. https://linked-out-pro.vercel.app
+#
+# NOTE: GitHub Actions free-tier scheduled workflows may be delayed up to 15 min
+#       during high load. workflow_dispatch lets you trigger manually at any time.
+
+name: Publish Scheduled Posts
 
 on:
   schedule:
-    # Run every 5 minutes — GitHub Actions minimum granularity
+    # Every 5 minutes (GitHub Actions minimum granularity)
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+
+  # Allow manual trigger from the Actions tab for debugging
+  workflow_dispatch:
 
 jobs:
-  publish-due-posts:
+  publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 4   # Kill if the job hangs (Vercel fn max is 60s)
+
     steps:
-      - name: Trigger auto-publish cron
+      - name: Trigger post publisher
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
         run: |
-          echo "⏰ Triggering cron at $(date -u)"
-          
-          HTTP_STATUS=$(curl -s --max-time 90 \
-            -o /tmp/cron_response.json \
-            -w "%{http_code}" \
-            -X POST "https://linked-out-pro.vercel.app/api/cron/trigger")
-          
-          echo "📡 HTTP Status: $HTTP_STATUS"
-          echo "📦 Response body:"
-          cat /tmp/cron_response.json || true
-          echo ""
-          
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "::error::Cron returned HTTP $HTTP_STATUS"
-            exit 1
-          fi
-          
-          echo "✅ Cron completed successfully"
+          BASE="${APP_BASE_URL:-https://linked-out-pro.vercel.app}"
+          echo "🔔 Triggering cron at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "📡 Endpoint: ${BASE}/api/cron/trigger"
+
+          # Attempt with up to 3 retries (10s gap) in case of transient errors
+          for attempt in 1 2 3; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+              --max-time 70 \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -H "x-cron-secret: ${CRON_SECRET}" \
+              "${BASE}/api/cron/trigger")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+            BODY=$(echo "$RESPONSE" | head -n -1)
+
+            echo "--- Attempt $attempt ---"
+            echo "Status : $HTTP_CODE"
+            echo "Response: $BODY"
+
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✅ Cron completed successfully"
+              exit 0
+            fi
+
+            echo "⚠️  Attempt $attempt failed with HTTP $HTTP_CODE"
+            [ $attempt -lt 3 ] && sleep 10
+          done
+
+          echo "❌ All attempts failed — last HTTP code: $HTTP_CODE"
+          exit 1
+
+      - name: Health check
+        if: always()
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+        run: |
+          BASE="${APP_BASE_URL:-https://linked-out-pro.vercel.app}"
+          curl -sf "${BASE}/api/cron/health" \
+            && echo "✅ App is healthy" \
+            || echo "⚠️  Health check failed (non-critical)"

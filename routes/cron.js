@@ -7,9 +7,25 @@ const { publishDuePosts } = require('../services/scheduler');
 
 const router = express.Router();
 
+// ---- Secret validation middleware ----
+function requireCronSecret(req, res, next) {
+  const CRON_SECRET = process.env.CRON_SECRET;
+  // If no secret is configured, allow (dev mode)
+  if (!CRON_SECRET) return next();
+
+  const provided = req.headers['x-cron-secret'] ||
+                   req.query.secret ||
+                   req.body?.secret;
+  if (provided !== CRON_SECRET) {
+    console.warn('🚫 Cron: invalid or missing secret from', req.ip);
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  next();
+}
+
 // ---- GET/POST /api/cron/trigger ----
 // Vercel Cron or GitHub Actions calls this periodically
-router.all('/trigger', async (req, res) => {
+router.all('/trigger', requireCronSecret, async (req, res) => {
   console.log(`🔔 Cron triggered (${req.method}) at`, new Date().toISOString());
   try {
     const result = await publishDuePosts();
@@ -50,6 +66,7 @@ router.get('/debug', async (req, res) => {
       .order('scheduled_at');
 
     // Get recently failed posts (last 24h)
+    // updated_at is stored as epoch seconds (integer) in our schema
     const since = now - 86400;
     const { data: failed } = await sb.from('posts')
       .select('id, post_text, scheduled_at, status, fail_reason, updated_at, user_id')
