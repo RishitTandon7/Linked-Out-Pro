@@ -216,15 +216,37 @@ async function publishSinglePost(post, errorsArr = []) {
     return true;
 
   } catch (e) {
-    errorsArr.push(`publish(${post.id}): ${e.message}`);
-    console.error(`❌ Failed to publish post ${post.id}:`, e.message);
+    const errMsg = e.message || String(e);
+    errorsArr.push(`publish(${post.id}): ${errMsg}`);
+    console.error(`❌ Failed to publish post ${post.id}:`, errMsg);
+    console.error(`❌ Full error:`, e.response?.data || e.stack || errMsg);
+
+    // CRITICAL: wrap this update in its own try-catch.
+    // If the DB update itself fails, we must still return false (not re-throw),
+    // otherwise the post stays 'scheduled' and will be retried forever.
     const now = Math.floor(Date.now() / 1000);
-    if (IS_SUPABASE) {
-      await sb.from('posts').update({ status: 'failed', fail_reason: e.message, updated_at: now }).eq('id', post.id);
-    } else {
-      await run(`UPDATE posts SET status='failed', fail_reason=?, updated_at=? WHERE id=?`, [e.message, now, post.id]);
+    try {
+      if (IS_SUPABASE) {
+        const { error: updateErr } = await sb.from('posts')
+          .update({ status: 'failed', fail_reason: errMsg.slice(0, 500), updated_at: now })
+          .eq('id', post.id);
+        if (updateErr) {
+          console.error(`⚠️ Could not mark post ${post.id} as failed:`, updateErr.message);
+        } else {
+          console.log(`🏷️  Post ${post.id} marked as failed in DB`);
+        }
+      } else {
+        await run(`UPDATE posts SET status='failed', fail_reason=?, updated_at=? WHERE id=?`,
+          [errMsg.slice(0, 500), now, post.id]);
+        console.log(`🏷️  Post ${post.id} marked as failed in DB`);
+      }
+    } catch (dbErr) {
+      console.error(`⚠️ CRITICAL: Could not mark post ${post.id} as failed in DB:`, dbErr.message);
+      // Even if we can't update the DB, return false. The cron will retry next run
+      // but at least we're not throwing out of the catch which would leave it as 'scheduled'.
     }
-    try { await notifyPostFailed(post.user_id, e.message); } catch (err) { /* silent */ }
+
+    try { await notifyPostFailed(post.user_id, errMsg); } catch (err) { /* silent */ }
     return false;
   }
 }
