@@ -1,0 +1,26 @@
+name: Background Scheduler
+
+on:
+  schedule:
+    # GitHub Actions minimum cron frequency is every 5 minutes
+    - cron: '*/5 * * * *'
+  # Allows you to trigger this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  ping-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Auto-Publish Scheduler
+        run: |
+          # Use CRON_SECRET if available in your repository secrets, otherwise ping normally
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%%{http_code}" -X POST \
+            "https://linked-out-pro.vercel.app/api/cron/trigger" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+          
+          echo "Triggered cron endpoint. Status code: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -ne 200 ] && [ "$HTTP_STATUS" -ne 401 ]; then
+            echo "Cron trigger failed with unexpected status"
+            exit 1
+          fi
