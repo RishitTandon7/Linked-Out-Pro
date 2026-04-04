@@ -39,32 +39,35 @@ function startScheduler() {
  * Find and publish all posts whose scheduled_at has passed
  */
 async function publishDuePosts() {
-  const result = { published: 0, failed: 0, skipped: 0 };
+  const result = { published: 0, failed: 0, skipped: 0, postsFound: 0, errors: [], nowTs: 0 };
 
   try {
     const now = Math.floor(Date.now() / 1000);
+    result.nowTs = now;
     let duePosts = [];
 
     if (IS_SUPABASE) {
-      // Join posts + users via two queries
-      const { data: posts } = await sb.from('posts')
+      const { data: posts, error: postsErr } = await sb.from('posts')
         .select('*')
         .eq('status', 'scheduled')
         .lte('scheduled_at', now);
 
-      if (!posts || posts.length === 0) return result;
+      if (postsErr) result.errors.push('posts_query: ' + postsErr.message);
+      if (!posts || posts.length === 0) {
+        // Also grab total scheduled count for debugging
+        const { data: allSched } = await sb.from('posts').select('id,scheduled_at').eq('status','scheduled');
+        result.totalScheduled = (allSched || []).length;
+        result.nextScheduled  = allSched?.map(p => p.scheduled_at) || [];
+        return result;
+      }
 
+      result.postsFound = posts.length;
       const userIds = [...new Set(posts.map(p => p.user_id))];
       
-      // Get users
-      const { data: users } = await sb.from('users')
+      const { data: users, error: usersErr } = await sb.from('users')
         .select('id, access_token, linkedin_id')
         .in('id', userIds);
-        
-      // Get settings to check auto_post_enabled
-      const { data: settings } = await sb.from('user_settings')
-        .select('user_id, auto_post_enabled')
-        .in('user_id', userIds);
+      if (usersErr) result.errors.push('users_query: ' + usersErr.message);
 
       const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
       duePosts = posts.map(p => ({ ...p, ...userMap[p.user_id] }));
@@ -76,6 +79,7 @@ async function publishDuePosts() {
         JOIN users u ON p.user_id = u.id
         WHERE p.status = 'scheduled' AND p.scheduled_at <= ?
       `, [now]);
+      result.postsFound = duePosts.length;
     }
 
     if (duePosts.length === 0) return result;
@@ -83,10 +87,11 @@ async function publishDuePosts() {
     console.log(`🚀 Publishing ${duePosts.length} scheduled post(s)...`);
 
     for (const post of duePosts) {
-      const ok = await publishSinglePost(post);
+      const ok = await publishSinglePost(post, result.errors);
       if (ok) result.published++; else result.failed++;
     }
   } catch (e) {
+    result.errors.push('scheduler: ' + e.message);
     console.error('Scheduler error:', e.message);
   }
 
@@ -97,11 +102,12 @@ async function publishDuePosts() {
  * Publish a single post to LinkedIn, then delete its images to free storage
  * @returns {boolean} success
  */
-async function publishSinglePost(post) {
+async function publishSinglePost(post, errorsArr = []) {
   try {
     let images = [];
     if (IS_SUPABASE) {
-      const { data } = await sb.from('post_images').select('*').eq('post_id', post.id).order('sort_order');
+      const { data, error: imgErr } = await sb.from('post_images').select('*').eq('post_id', post.id).order('sort_order');
+      if (imgErr) errorsArr.push(`post_images(${post.id}): ${imgErr.message}`);
       images = data || [];
     } else {
       images = await all('SELECT * FROM post_images WHERE post_id = ? ORDER BY sort_order', [post.id]);
@@ -109,45 +115,59 @@ async function publishSinglePost(post) {
 
     const imageFiles = [];
     for (const img of images) {
-      let filePath = getLocalPath(img);
-
-      // Resolve relative paths (e.g. './uploads/abc.jpg') to absolute
-      if (!path.isAbsolute(filePath)) {
-        filePath = path.resolve(filePath);
-      }
-
-      // Fallback: try UPLOADS_DIR + filename if the original path is missing
-      if (!fs.existsSync(filePath) && img.filename) {
-        const fallback = path.join(path.resolve(UPLOADS_DIR), img.filename);
-        if (fs.existsSync(fallback)) {
-          filePath = fallback;
-          console.log(`📁 Using fallback path for image ${img.filename}`);
-        }
-      }
-
-      // On Vercel, /tmp files from a previous invocation may be gone.
-      // Re-download from Supabase Storage if the local file is missing.
-      if (!fs.existsSync(filePath)) {
-        const url = img.storage_url;
-        if (!url) {
-          console.warn(`⚠️ Image ${img.id} (${img.filename}) has no storage_url and local file missing (checked: ${filePath}) — skipping`);
-          continue;
-        }
+      // On Vercel: always try storage_url first — local /tmp files are gone after cold-start
+      if (IS_VERCEL && img.storage_url) {
         try {
           const axios = require('axios');
-          const resp  = await axios.get(url, { responseType: 'arraybuffer' });
-          filePath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
-          fs.writeFileSync(filePath, resp.data);
-          console.log(`📥 Re-downloaded image from Supabase Storage: ${img.filename}`);
+          const resp  = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
+          const tmpPath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
+          fs.writeFileSync(tmpPath, resp.data);
+          console.log(`📥 Downloaded image from Supabase Storage: ${img.filename}`);
+          imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
+          continue;
         } catch (dlErr) {
+          errorsArr.push(`img_download(${img.filename}): ${dlErr.message}`);
           console.warn(`⚠️ Could not download image ${img.id}:`, dlErr.message);
           continue;
         }
       }
 
-      console.log(`📸 Attaching image to LinkedIn post: ${filePath}`);
+      // Local / dev path
+      let filePath = getLocalPath(img);
+      if (!path.isAbsolute(filePath)) filePath = path.resolve(filePath);
+
+      // Fallback: try UPLOADS_DIR + filename
+      if (!fs.existsSync(filePath) && img.filename) {
+        const fallback = path.join(path.resolve(UPLOADS_DIR), img.filename);
+        if (fs.existsSync(fallback)) { filePath = fallback; }
+      }
+
+      // Last resort: re-download from storage_url
+      if (!fs.existsSync(filePath) && img.storage_url) {
+        try {
+          const axios = require('axios');
+          const resp  = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
+          filePath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
+          fs.writeFileSync(filePath, resp.data);
+          console.log(`📥 Re-downloaded image from Supabase Storage: ${img.filename}`);
+        } catch (dlErr) {
+          errorsArr.push(`img_download(${img.filename}): ${dlErr.message}`);
+          console.warn(`⚠️ Could not download image ${img.id}:`, dlErr.message);
+          continue;
+        }
+      }
+
+      if (!fs.existsSync(filePath)) {
+        errorsArr.push(`img_missing(${img.filename}): no local file and no storage_url`);
+        console.warn(`⚠️ Image ${img.id} (${img.filename}) missing — skipping`);
+        continue;
+      }
+
+      console.log(`📸 Attaching image: ${filePath}`);
       imageFiles.push({ path: filePath, mimetype: img.mimetype });
     }
+
+    console.log(`📤 Publishing post ${post.id} with ${imageFiles.length}/${images.length} image(s)...`);
 
     const linkedinPostId = await publishPost(
       post.access_token,
@@ -191,14 +211,12 @@ async function publishSinglePost(post) {
     }
     if (deleted > 0) console.log(`🗑️  Deleted ${deleted} image(s) — storage freed`);
 
-    // Trigger success notification
-    try {
-      await notifyPostPublished(post.user_id, post.id);
-    } catch (err) { console.warn('Could not send success push:', err.message); }
+    try { await notifyPostPublished(post.user_id, post.id); } catch (err) { /* silent */ }
 
     return true;
 
   } catch (e) {
+    errorsArr.push(`publish(${post.id}): ${e.message}`);
     console.error(`❌ Failed to publish post ${post.id}:`, e.message);
     const now = Math.floor(Date.now() / 1000);
     if (IS_SUPABASE) {
@@ -206,12 +224,7 @@ async function publishSinglePost(post) {
     } else {
       await run(`UPDATE posts SET status='failed', fail_reason=?, updated_at=? WHERE id=?`, [e.message, now, post.id]);
     }
-
-    // Trigger failure notification
-    try {
-      await notifyPostFailed(post.user_id, e.message);
-    } catch (err) { console.warn('Could not send error push:', err.message); }
-
+    try { await notifyPostFailed(post.user_id, e.message); } catch (err) { /* silent */ }
     return false;
   }
 }
