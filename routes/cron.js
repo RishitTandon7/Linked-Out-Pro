@@ -32,8 +32,70 @@ router.all('/trigger', async (req, res) => {
   }
 });
 
+// ---- GET /api/cron/debug ----
+// Returns current state of scheduled/failed posts and their fail_reason
+router.get('/debug', async (req, res) => {
+  try {
+    const { IS_SUPABASE, supabase: sb } = require('../database/db');
+    const now = Math.floor(Date.now() / 1000);
+
+    if (!IS_SUPABASE) {
+      return res.json({ error: 'Only available in Supabase (production) mode' });
+    }
+
+    // Get all scheduled posts
+    const { data: scheduled } = await sb.from('posts')
+      .select('id, post_text, scheduled_at, status, fail_reason, updated_at, user_id')
+      .eq('status', 'scheduled')
+      .order('scheduled_at');
+
+    // Get recently failed posts (last 24h)
+    const since = now - 86400;
+    const { data: failed } = await sb.from('posts')
+      .select('id, post_text, scheduled_at, status, fail_reason, updated_at, user_id')
+      .eq('status', 'failed')
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false });
+
+    // Check users have valid tokens
+    const userIds = [...new Set([
+      ...(scheduled || []).map(p => p.user_id),
+      ...(failed || []).map(p => p.user_id)
+    ])];
+    const { data: users } = await sb.from('users')
+      .select('id, name, linkedin_id, token_expires')
+      .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+    const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+    const overdue = (scheduled || []).filter(p => p.scheduled_at <= now);
+
+    res.json({
+      nowTs:     now,
+      nowHuman:  new Date().toISOString(),
+      scheduled: (scheduled || []).map(p => ({
+        id:           p.id,
+        preview:      (p.post_text || '').slice(0, 80),
+        scheduled_at: p.scheduled_at,
+        overdue:      p.scheduled_at <= now,
+        user:         userMap[p.user_id]?.name,
+        token_expires: userMap[p.user_id]?.token_expires,
+        token_valid:  (userMap[p.user_id]?.token_expires || 0) > now
+      })),
+      overdue_count: overdue.length,
+      failed_recent: (failed || []).map(p => ({
+        id:         p.id,
+        preview:    (p.post_text || '').slice(0, 80),
+        fail_reason: p.fail_reason,
+        failed_at:  new Date(p.updated_at * 1000).toISOString(),
+        user:       userMap[p.user_id]?.name
+      }))
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- GET /api/cron/health ----
-// GitHub Actions can ping this to confirm the server is up
 router.get('/health', (req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
