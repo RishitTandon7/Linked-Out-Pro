@@ -1,19 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2E85E0"/>
-      <stop offset="100%" stop-color="#0A66C2"/>
+    <!-- Rich dynamic blue gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0080C8" />
+      <stop offset="50%" stop-color="#0062A5" />
+      <stop offset="100%" stop-color="#003E70" />
     </linearGradient>
+
+    <!-- Inner light reflection from top -->
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.25)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+    </linearGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
-  <rect width="200" height="200" rx="40" ry="40" fill="url(#bg)"/>
+
+  <!-- Base Smooth Squirclular Rectangle (Apple style) -->
+  <rect width="512" height="512" rx="115" fill="url(#bg)" />
+  <rect width="512" height="512" rx="115" fill="url(#shine)" />
+  <rect x="2" y="2" width="508" height="508" rx="113" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4" />
+
+  <!-- Centered "out" typography -->
   <text
-    x="50%" y="58%"
-    font-family="Inter, -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif"
-    font-size="80"
+    x="50%" y="54%"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    font-size="240"
     font-weight="900"
-    fill="white"
+    fill="#ffffff"
     text-anchor="middle"
-    dominant-baseline="middle"
-    letter-spacing="-3"
+    dominant-baseline="central"
+    letter-spacing="-12"
   >out</text>
+
+  <!-- Pro Badge at bottom right relative to 'out' -->
+  <rect x="360" y="340" width="80" height="40" rx="12" fill="#00a0dc" />
+  <text
+    x="400" y="367"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="800"
+    fill="#ffffff"
+    text-anchor="middle"
+    letter-spacing="2"
+  >PRO</text>
+
+  <!-- Magical AI Spark (Top Right) -->
+  <path d="M 380 90 C 390 120 410 140 440 150 C 410 160 390 180 380 210 C 370 180 350 160 320 150 C 350 140 370 120 380 90 Z" 
+        fill="#ffffff" filter="url(#glow)"/>
 </svg>
