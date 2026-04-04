@@ -67,19 +67,14 @@ async function publishDuePosts() {
         .in('user_id', userIds);
 
       const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
-      const settingsMap = Object.fromEntries((settings || []).map(s => [s.user_id, s.auto_post_enabled]));
-
-      duePosts = posts
-        .filter(p => settingsMap[p.user_id] !== false) // Only map if auto-post is enabled
-        .map(p => ({ ...p, ...userMap[p.user_id] }));
+      duePosts = posts.map(p => ({ ...p, ...userMap[p.user_id] }));
         
     } else {
       duePosts = await all(`
         SELECT p.*, u.access_token, u.linkedin_id
         FROM posts p
         JOIN users u ON p.user_id = u.id
-        JOIN user_settings s ON p.user_id = s.user_id
-        WHERE p.status = 'scheduled' AND p.scheduled_at <= ? AND s.auto_post_enabled = 1
+        WHERE p.status = 'scheduled' AND p.scheduled_at <= ?
       `, [now]);
     }
 
