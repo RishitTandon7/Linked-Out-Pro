@@ -12,13 +12,21 @@ jobs:
     steps:
       - name: Trigger auto-publish cron
         run: |
-          HTTP_STATUS=$(curl -sf -o /tmp/cron_response.json -w "%{http_code}" \
+          echo "⏰ Triggering cron at $(date -u)"
+          
+          HTTP_STATUS=$(curl -s --max-time 90 \
+            -o /tmp/cron_response.json \
+            -w "%{http_code}" \
             -X POST "https://linked-out-pro.vercel.app/api/cron/trigger")
           
-          echo "Status: $HTTP_STATUS"
+          echo "📡 HTTP Status: $HTTP_STATUS"
+          echo "📦 Response body:"
           cat /tmp/cron_response.json || true
+          echo ""
           
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "::warning::Cron returned status $HTTP_STATUS"
+            echo "::error::Cron returned HTTP $HTTP_STATUS"
             exit 1
           fi
+          
+          echo "✅ Cron completed successfully"

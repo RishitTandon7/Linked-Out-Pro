@@ -13,12 +13,18 @@ router.all('/trigger', async (req, res) => {
   console.log(`🔔 Cron triggered (${req.method}) at`, new Date().toISOString());
   try {
     const result = await publishDuePosts();
+    console.log('🔔 Cron result:', JSON.stringify(result));
     res.json({
-      ok:          true,
-      triggeredAt: new Date().toISOString(),
-      published:   result?.published  || 0,
-      failed:      result?.failed     || 0,
-      skipped:     result?.skipped    || 0
+      ok:             true,
+      triggeredAt:    new Date().toISOString(),
+      published:      result?.published  || 0,
+      failed:         result?.failed     || 0,
+      skipped:        result?.skipped    || 0,
+      postsFound:     result?.postsFound || 0,
+      totalScheduled: result?.totalScheduled,
+      nextScheduled:  result?.nextScheduled,
+      nowTs:          result?.nowTs,
+      errors:         result?.errors     || []
     });
   } catch (e) {
     console.error('Cron trigger error:', e.message);
