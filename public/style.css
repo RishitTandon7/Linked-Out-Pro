@@ -415,8 +415,8 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 
 /* ==== COMPREHENSIVE MOBILE PATCH ==== */
 @media (max-width: 900px) {
-  /* Tab content — tighter padding on mobile */
-  .tab-content { padding: 16px; }
+  /* Tab content — tighter padding on mobile, extra top so titles clear the fixed header */
+  .tab-content { padding: 80px 16px 16px; }
 
   /* Studio grid: single column, forge FIRST then preview */
   .studio-grid {

@@ -327,6 +327,9 @@ function renderPostList(posts) {
       actions.push(`<button class="q-btn" onclick="editPost('${post.id}')">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit</button>`);
+      actions.push(`<button class="q-btn accent" onclick="openScheduleFromQueue('${post.id}')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Schedule</button>`);
     }
     if (post.status === 'scheduled') {
       actions.push(`<button class="q-btn" onclick="unschedulePost('${post.id}')">
@@ -606,8 +609,14 @@ async function generatePost() {
       // Render multi-post navigator if more than one result
       renderMultiPostNav(results, 0);
 
-      if (results.length > 1) showToast(`✓ ${results.length} posts forged! Use ← → to browse each.`, 'success');
-      else showToast('✓ Post generated and saved to draft!', 'success');
+      if (results.length > 1) {
+        showToast(`✓ ${results.length} posts forged! Auto-scheduling...`, 'success');
+        // Auto-schedule all generated posts using user's preferred settings
+        for (const r of results) await autoSchedulePost(r.postId);
+      } else {
+        showToast('✓ Post forged! Auto-scheduling...', 'success');
+        await autoSchedulePost(first.postId);
+      }
 
     } else {
       // Event Mode: 1 post, multiple images
@@ -628,7 +637,8 @@ async function generatePost() {
       currentHashtags = data.hashtags;
       displayPost(data.postText, data.hashtags);
       removeMultiPostNav();
-      showToast('✓ Event post generated and saved to draft!', 'success');
+      showToast('✓ Event post forged! Auto-scheduling...', 'success');
+      await autoSchedulePost(data.postId);
     }
 
     loadStats();
@@ -800,6 +810,56 @@ async function copyFull() {
   const full = `${currentPostText}\n\n${currentHashtags}`.trim();
   await navigator.clipboard.writeText(full).catch(() => {});
   showToast('✓ Copied to clipboard!', 'success');
+}
+
+// ---- Auto-Schedule (uses user's saved settings, no user input needed) ----
+async function autoSchedulePost(postId) {
+  if (!postId) return;
+  try {
+    // Read user's preferred settings from the UI (already loaded when settings tab renders)
+    const hourVal = parseInt(document.getElementById('preferredHour')?.value ?? '9');
+    const hour = (isNaN(hourVal) || hourVal === -1)
+      ? [8, 9, 11, 12, 15, 17][Math.floor(Math.random() * 6)] // optimal hours if "Let Agent Decide"
+      : hourVal;
+
+    // Read preferred days (highlighted day buttons in Settings)
+    const dayNameToNum = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+    const preferredDays = new Set();
+    document.querySelectorAll('.day-btn.active').forEach(btn => {
+      const d = dayNameToNum[btn.dataset.day];
+      if (d !== undefined) preferredDays.add(d);
+    });
+    // Fallback to Mon/Wed/Fri if none set
+    if (preferredDays.size === 0) [1, 3, 5].forEach(d => preferredDays.add(d));
+
+    // Find the next slot that lands on a preferred day and is at least a few hours from now,
+    // also respects posts_per_week by checking how many are already scheduled this week
+    const now = new Date();
+    let candidate = new Date(now);
+    candidate.setHours(hour, 0, 0, 0);
+    // Move to tomorrow if the time today has passed
+    if (candidate <= now) candidate.setDate(candidate.getDate() + 1);
+
+    // Walk forward until we land on a preferred day (max 14 day scan)
+    let safety = 0;
+    while (!preferredDays.has(candidate.getDay()) && safety < 14) {
+      candidate.setDate(candidate.getDate() + 1);
+      safety++;
+    }
+
+    const scheduledAtSec = Math.floor(candidate.getTime() / 1000);
+
+    await api(`/api/posts/${postId}/schedule`, 'POST', { scheduledAt: scheduledAtSec });
+
+    const label = candidate.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    showToast(`📅 Scheduled for ${label}`, 'success');
+    loadStats(); loadPosts();
+  } catch (e) {
+    // Don't block UI — just log; post remains a draft
+    console.warn('Auto-schedule failed:', e.message);
+    showToast('✓ Post saved as draft (auto-schedule failed)', 'info');
+    loadStats(); loadPosts();
+  }
 }
 
 // ---- Schedule ----
