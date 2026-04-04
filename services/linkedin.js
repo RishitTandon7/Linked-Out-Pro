@@ -155,7 +155,7 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
  * @param {Array<{path, mimetype}>} images - optional
  */
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
-  const authorUrn = `urn:li:person:${linkedinId}`;
+  const authorUrn  = `urn:li:person:${linkedinId}`;
   const commentary = hashtags ? `${postText}\n\n${hashtags}` : postText;
 
   // Upload images first (if any)
@@ -168,56 +168,70 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
     }
   }
 
-  // Build the post body per the new REST Posts API schema
-  // Docs: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
+  // Build the post body per the new REST Posts API schema.
+  // IMPORTANT: Do NOT include targetEntities or thirdPartyDistributionChannels
+  // as empty arrays — LinkedIn returns 422 for empty optional arrays.
+  // Only include fields that have actual values.
   const postBody = {
     author:         authorUrn,
     commentary,
     visibility:     'PUBLIC',
     distribution: {
-      feedDistribution:             'MAIN_FEED',
-      targetEntities:               [],
-      thirdPartyDistributionChannels: []
+      feedDistribution: 'MAIN_FEED'
+      // targetEntities and thirdPartyDistributionChannels omitted when not targeting
     },
-    lifecycleState:              'PUBLISHED',
-    isReshareDisabledByAuthor:   false
+    lifecycleState: 'PUBLISHED'
+    // isReshareDisabledByAuthor omitted (optional, defaults to false)
   };
 
   if (imageUrns.length === 1) {
     // Single image post
     postBody.content = {
-      media: {
-        id: imageUrns[0]
-      }
+      media: { id: imageUrns[0] }
     };
   } else if (imageUrns.length > 1) {
-    // Multi-image post (up to 9 images)
+    // Multi-image post (LinkedIn supports up to 9 images)
     postBody.content = {
       multiImage: {
         images: imageUrns.map(id => ({ id, altText: '' }))
       }
     };
   }
-  // No content key = text-only post
+  // No content key => text-only post
 
-  console.log(`📝 Posting to LinkedIn REST API as ${authorUrn}`);
+  console.log(`📝 Posting to LinkedIn REST API as ${authorUrn}, images: ${imageUrns.length}`);
+  console.log('📦 POST body:', JSON.stringify(postBody));
 
-  const res = await axios.post(
-    'https://api.linkedin.com/rest/posts',
-    postBody,
-    {
-      headers: {
-        Authorization:               `Bearer ${accessToken}`,
-        'Content-Type':              'application/json',
-        'LinkedIn-Version':          LI_VERSION,
-        'X-Restli-Protocol-Version': '2.0.0'
+  let res;
+  try {
+    res = await axios.post(
+      'https://api.linkedin.com/rest/posts',
+      postBody,
+      {
+        headers: {
+          Authorization:               `Bearer ${accessToken}`,
+          'Content-Type':              'application/json',
+          'LinkedIn-Version':          LI_VERSION,
+          'X-Restli-Protocol-Version': '2.0.0'
+        }
       }
-    }
-  );
+    );
+  } catch (err) {
+    // Log the full LinkedIn error response for Vercel log inspection
+    console.error('❌ LinkedIn POST /rest/posts failed:', {
+      status:  err.response?.status,
+      headers: JSON.stringify(err.response?.headers),
+      body:    JSON.stringify(err.response?.data)
+    });
+    throw new Error(
+      `LinkedIn API error ${err.response?.status}: ` +
+      JSON.stringify(err.response?.data || err.message)
+    );
+  }
 
-  // The post ID is returned in the x-restli-id header (or the id field)
+  // The post ID is in the x-restli-id header
   const postId = res.headers['x-restli-id'] || res.data?.id || 'unknown';
-  console.log(`✅ Post created on LinkedIn: ${postId}`);
+  console.log(`✅ LinkedIn post created: ${postId}`);
   return postId;
 }
 
