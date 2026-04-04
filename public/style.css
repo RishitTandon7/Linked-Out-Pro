@@ -137,7 +137,20 @@ html, body {
   .mobile-nav-item.active { color: var(--primary); }
   .mobile-nav-item.active svg { color: var(--primary); }
   
-  .dash-main { height: 100%; padding-top: 60px; padding-bottom: calc(65px + env(safe-area-inset-bottom)); }
+  /* dash-main: mobile scroll area. The fixed top header is 60px,
+     so we push content down with padding-top. The dash-main itself
+     is the scroll container (height:100vh set on desktop), on mobile
+     we keep height:100dvh (dynamic viewport) so it fills available vertical space.
+     overflow-y:auto is explicitly set here in case the desktop rule is overridden. */
+  .dash-main {
+    height: 100dvh;
+    padding-top: 60px;
+    padding-bottom: calc(65px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-padding-top: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
 
   /* Prevent any element from causing horizontal scroll on mobile */
   body, html { overflow-x: hidden; max-width: 100vw; }
@@ -147,7 +160,7 @@ html, body {
 /* ========================
    MAIN WORK AREA
    ======================== */
-.dash-main { flex: 1; height: 100vh; overflow-y: auto; overflow-x: hidden; }
+.dash-main { flex: 1; height: 100vh; overflow-y: auto; overflow-x: hidden; scroll-padding-top: 64px; }
 
 /* Tabs */
 .tab-content { display: none; padding: 48px; min-height: 100%; animation: fadeUp 0.4s var(--ease) both; }
@@ -419,8 +432,18 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 
 /* ==== COMPREHENSIVE MOBILE PATCH ==== */
 @media (max-width: 900px) {
-  /* Tab content — tighter padding on mobile, extra top so titles clear the fixed header */
-  .tab-content { padding: 80px 16px 16px; }
+  /* Tab content — add 16px breathing room below the header padding */
+  .tab-content { padding: 16px 16px 16px; }
+
+  /* First child in each tab gets a top bump so title never sits flush at top edge */
+  .tab-content > *:first-child,
+  .tab-content > .setting-section:first-child,
+  .tab-content > .forge-header:first-child,
+  .tab-content > .studio-grid:first-child {
+    margin-top: 8px;
+  }
+  /* Forge/section page titles */
+  .forge-header { padding-top: 2px; }
 
   /* Studio grid: single column, forge FIRST then preview */
   .studio-grid {
@@ -508,8 +531,8 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 }
 
 @media (max-width: 420px) {
-  /* Keep the top clearance even on tiny phones — do NOT override to 12px */
-  .tab-content { padding: 74px 12px 12px; }
+  /* Same as 900px approach — dash-main padding-top handles header clearance */
+  .tab-content { padding: 12px 12px 12px; }
   .forge-card { padding: 16px 12px; }
   .forge-title { font-size: 1.4rem; }
   .analytics-grid4 { grid-template-columns: 1fr; }
