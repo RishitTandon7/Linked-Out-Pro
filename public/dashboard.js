@@ -217,48 +217,27 @@ async function loadStats() {
     else badge.style.display = 'none';
   } catch (e) { console.warn('Could not load stats'); }
 }
-// ---- Native Analytics Sync (Modal) ----
-function openSyncModal() {
-  document.getElementById('syncModal').classList.remove('hidden');
-  try {
-    const d = JSON.parse(localStorage.getItem('linkedin_native_metrics') || '{}');
-    document.getElementById('syncImpr').value = d.impressions || '';
-    document.getElementById('syncFoll').value = d.followers || '';
-    document.getElementById('syncView').value = d.viewers || '';
-    document.getElementById('syncSrch').value = d.searches || '';
-  } catch (e) {}
-}
 
-function closeSyncModal() {
-  document.getElementById('syncModal').classList.add('hidden');
-}
-
-function saveSyncMetrics() {
-  const impressions = parseInt(document.getElementById('syncImpr').value) || 0;
-  const followers   = parseInt(document.getElementById('syncFoll').value) || 0;
-  const viewers     = parseInt(document.getElementById('syncView').value) || 0;
-  const searches    = parseInt(document.getElementById('syncSrch').value) || 0;
-
-  localStorage.setItem('linkedin_native_metrics', JSON.stringify({ impressions, followers, viewers, searches }));
-  
-  // Immedate update
-  document.getElementById('metric-impressions').textContent = impressions.toLocaleString();
-  document.getElementById('metric-followers').textContent   = followers.toLocaleString();
-  document.getElementById('metric-viewers').textContent     = viewers.toLocaleString();
-  document.getElementById('metric-searches').textContent    = searches.toLocaleString();
-  
-  showToast('✓ Native analytics synced!');
-  closeSyncModal();
+// ---- Analytics Refresh (live LinkedIn data) ----
+async function openSyncModal() {
+  // No modal: just re-fetch live data
+  await loadAnalytics();
 }
 
 // ---- Load Analytics (REAL LinkedIn Social Actions data) ----
 async function loadAnalytics() {
   const list      = document.getElementById('topPostsList');
+  const syncBtn   = document.querySelector('[onclick="openSyncModal()"]');
 
-  // Show loading skeleton
-  list.innerHTML = `<div class="kpi-loading">
-    <div class="kpi-skeleton"></div><div class="kpi-skeleton"></div><div class="kpi-skeleton"></div>
-  </div>`;
+  // Show loading state
+  if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Loading...`; }
+  list.innerHTML = `<div style="display:flex;gap:12px;padding:20px 0">${[1,2,3].map(() => `<div class="kpi-skeleton" style="height:60px;border-radius:12px;flex:1"></div>`).join('')}</div>`;
+
+  // Reset stat cards to loading state
+  ['metric-impressions','metric-followers','metric-viewers','metric-searches'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '…';
+  });
 
   try {
     const data = await api('/api/analytics/live');
@@ -274,17 +253,32 @@ async function loadAnalytics() {
     const posts  = data.posts  || [];
     const totals = data.totals || { likes: 0, comments: 0, posts: 0 };
 
-    // Update top 4 native metrics
-    try {
-      const nativeStr = localStorage.getItem('linkedin_native_metrics');
-      if (nativeStr) {
-        const native = JSON.parse(nativeStr);
-        document.getElementById('metric-impressions').textContent = (native.impressions || 0).toLocaleString();
-        document.getElementById('metric-followers').textContent   = (native.followers || 0).toLocaleString();
-        document.getElementById('metric-viewers').textContent     = (native.viewers || 0).toLocaleString();
-        document.getElementById('metric-searches').textContent    = (native.searches || 0).toLocaleString();
-      }
-    } catch (e) { console.error('Error parsing native metrics', e); }
+    // ---- Real stat cards from live data ----
+    // LinkedIn personal API doesn't expose impressions/followers/viewers/searches.
+    // We use what IS available: total likes, total comments, total posts published, last post date.
+    const totalPosts    = totals.posts;
+    const totalLikes    = totals.likes;
+    const totalComments = totals.comments;
+    const lastPost = posts.length > 0 && posts[0].published_at
+      ? new Date(posts[0].published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '—';
+
+    document.getElementById('metric-impressions').textContent = totalLikes.toLocaleString();
+    document.getElementById('metric-followers').textContent   = totalComments.toLocaleString();
+    document.getElementById('metric-viewers').textContent     = totalPosts.toLocaleString();
+    document.getElementById('metric-searches').textContent    = lastPost;
+
+    // Update labels to match real data
+    const labels = document.querySelectorAll('.stat-card .stat-label');
+    const trends = document.querySelectorAll('.stat-card .stat-trend');
+    if (labels[0]) labels[0].textContent = 'Total Likes';
+    if (labels[1]) labels[1].textContent = 'Total Comments';
+    if (labels[2]) labels[2].textContent = 'Posts Published';
+    if (labels[3]) labels[3].textContent = 'Latest Post';
+    if (trends[0]) trends[0].textContent = 'real-time from LinkedIn';
+    if (trends[1]) trends[1].textContent = 'real-time from LinkedIn';
+    if (trends[2]) trends[2].textContent = 'via this app + LinkedIn';
+    if (trends[3]) trends[3].textContent = data.meta?.fetchedAt ? 'Synced ' + new Date(data.meta.fetchedAt).toLocaleTimeString() : '';
 
     // Render per-post breakdown
     if (posts.length === 0) {
@@ -299,7 +293,7 @@ async function loadAnalytics() {
     posts.slice(0, 8).forEach(p => {
       const date = p.published_at ? new Date(p.published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const preview = (p.post_text || '').slice(0, 120) + (p.post_text?.length > 120 ? '…' : '');
-      const isNative = p.native ? '<span class="q-tag" style="font-size:0.6rem">LinkedIn native</span>' : '';
+      const isNative = p.native ? `<span class="q-tag" style="font-size:0.6rem">LinkedIn native</span>` : '';
 
       list.innerHTML += `
         <div class="kpi-row">
@@ -323,7 +317,7 @@ async function loadAnalytics() {
     // Note about views
     const note = document.createElement('div');
     note.style.cssText = 'font-size:.7rem;color:var(--text-muted);margin-top:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid var(--border)';
-    note.textContent = '⚠ LinkedIn\'s API does not expose personal post view counts. Likes & comments are real-time data.';
+    note.textContent = '⚠ LinkedIn\'s personal API does not expose impressions, followers, or profile views. Showing real-time likes & comments.';
     list.appendChild(note);
 
   } catch (e) {
@@ -331,6 +325,11 @@ async function loadAnalytics() {
       Failed to load analytics: ${escapeHtml(e.message)}
     </div>`;
     console.error('Analytics load error:', e);
+  } finally {
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Refresh`;
+    }
   }
 }
 
