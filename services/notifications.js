@@ -41,12 +41,23 @@ try {
  */
 async function sendPushToUser(userId, payload) {
   try {
-    // Look up the user's FCM token from DB
-    const { get } = require('../database/db');
-    const user = await get('SELECT fcm_token FROM users WHERE id = ?', [userId]);
-    if (!user?.fcm_token) return; // User hasn't granted notification permission
+    const db = require('../database/db');
+    let fcmToken = null;
 
-    await sendPush(user.fcm_token, payload);
+    if (db.IS_SUPABASE) {
+      const { data } = await db.supabase
+        .from('users')
+        .select('fcm_token')
+        .eq('id', userId)
+        .single();
+      fcmToken = data?.fcm_token;
+    } else {
+      const user = await db.get('SELECT fcm_token FROM users WHERE id = ?', [userId]);
+      fcmToken = user?.fcm_token;
+    }
+
+    if (!fcmToken) return; // User hasn't granted notification permission
+    await sendPush(fcmToken, payload);
   } catch (e) {
     console.warn('Push notification failed:', e.message);
   }

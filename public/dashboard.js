@@ -22,6 +22,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadPosts();
   await loadSettings();
   setDefaultDateTime();
+  updateNotifButtonState();  // Reflect current notification permission in Settings
   startOnboarding();  // Show walkthrough for first-time users
 });
 
@@ -120,6 +121,60 @@ async function onboardingInstallApp() {
       btn.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg> Installed!';
       setTimeout(() => closeOnboarding(), 1000);
     }
+  }
+}
+
+// ---- Push Notification Permission ----
+async function requestNotificationPermission() {
+  const btn  = document.getElementById('notifEnableBtn');
+  const desc = document.getElementById('notifSettingDesc');
+  if (!btn) return;
+
+  if (!('Notification' in window)) {
+    if (desc) desc.textContent = 'Notifications not supported in this browser';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    showToast('Notifications already enabled ✓', 'success');
+    updateNotifButtonState();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Requesting...';
+
+  try {
+    if (typeof initPushNotifications === 'function') {
+      await initPushNotifications();
+    }
+    updateNotifButtonState();
+    if (Notification.permission === 'granted') {
+      showToast('🔔 Notifications enabled! You\'ll be notified when posts publish.', 'success');
+    } else {
+      showToast('Notification permission was denied', 'error');
+    }
+  } catch (e) {
+    showToast('Could not enable notifications: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function updateNotifButtonState() {
+  const btn  = document.getElementById('notifEnableBtn');
+  const desc = document.getElementById('notifSettingDesc');
+  if (!btn) return;
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  if (perm === 'granted') {
+    btn.innerHTML = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" stroke-linecap="round"/></svg> Enabled`;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'default';
+    btn.onclick = null;
+    if (desc) desc.textContent = 'You\'ll be notified when posts publish or fail';
+  } else if (perm === 'denied') {
+    btn.textContent = 'Blocked';
+    btn.style.opacity = '0.5';
+    if (desc) desc.textContent = 'Blocked by browser — allow in site settings to enable';
   }
 }
 
