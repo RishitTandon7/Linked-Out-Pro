@@ -9,7 +9,7 @@ const LI_CALLBACK_URL  = (process.env.LINKEDIN_CALLBACK_URL  || '').trim();
 
 // LinkedIn API version header (YYYYMM format)
 // See: https://learn.microsoft.com/en-us/linkedin/shared/api-guide/versioning
-const LI_VERSION = '202401';
+const LI_VERSION = '202603';
 
 // LinkedIn OAuth Scopes needed:
 //   openid, profile, email  → get user info

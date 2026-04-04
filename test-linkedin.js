@@ -8,7 +8,7 @@ const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
 
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const LI_VERSION = '202401';
+const LI_VERSION = '202603';
 
 async function run() {
   console.log('\n🔍 Fetching user from Supabase...');
