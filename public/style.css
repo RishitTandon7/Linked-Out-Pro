@@ -145,26 +145,19 @@ html, body {
   .dash-main {
     height: 100dvh;
     padding-top: 60px;
-    padding-bottom: calc(65px + env(safe-area-inset-bottom));
     overflow-y: auto;
     overflow-x: hidden;
     scroll-padding-top: 16px;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* iOS Safari ignores padding-bottom on overflow-y:auto scroll containers.
-     Fix: add a ::after spacer block that forces scroll space at the bottom. */
+  /* iOS Safari ignores padding-bottom on overflow-y:auto — use ::after spacer instead */
   .dash-main::after {
     content: '';
     display: block;
-    height: calc(65px + env(safe-area-inset-bottom) + 16px);
+    height: calc(65px + env(safe-area-inset-bottom) + 8px);
     width: 100%;
     flex-shrink: 0;
-  }
-
-  /* Also add bottom margin to active tab as a belt-and-suspenders fallback */
-  .tab-content.active {
-    margin-bottom: calc(65px + env(safe-area-inset-bottom));
   }
 
   /* Prevent any element from causing horizontal scroll on mobile */
