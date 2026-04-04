@@ -106,24 +106,30 @@ async function initializeImageUpload(accessToken, linkedinId) {
 /**
  * Upload an image to LinkedIn and return the image URN.
  * Uses the new REST Images API.
+ *
+ * IMPORTANT: The uploadUrl is a pre-signed CDN URL (like an S3 signed URL).
+ * You must NOT send Authorization or LinkedIn-Version headers on the PUT —
+ * those extra headers invalidate the pre-signed signature and cause a 403/400.
  */
 async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetype) {
   try {
-    // Step 1: Initialize upload — get upload URL and image URN
+    // Step 1: Initialize upload — get the pre-signed upload URL and image URN
     const { uploadUrl, imageUrn } = await initializeImageUpload(accessToken, linkedinId);
     console.log(`📡 LinkedIn image URN allocated: ${imageUrn}`);
 
-    // Step 2: Upload the binary image via PUT
+    // Step 2: PUT the raw binary to the pre-signed URL.
+    //         Only Content-Type goes here — NO Authorization or LinkedIn-Version.
     const imageBuffer = fs.readFileSync(imagePath);
-    await axios.put(uploadUrl, imageBuffer, {
+    console.log(`📦 Uploading ${imageBuffer.length} bytes (${mimetype || 'image/jpeg'}) to CDN...`);
+
+    const putRes = await axios.put(uploadUrl, imageBuffer, {
       headers: {
-        Authorization:      `Bearer ${accessToken}`,
-        'Content-Type':     mimetype || 'image/jpeg',
-        'LinkedIn-Version': LI_VERSION
+        'Content-Type': mimetype || 'image/jpeg'
       },
-      maxBodyLength: Infinity,
+      maxBodyLength:    Infinity,
       maxContentLength: Infinity
     });
+    console.log(`📤 CDN PUT status: ${putRes.status}`);
 
     console.log(`✅ Image uploaded to LinkedIn: ${imageUrn}`);
     return imageUrn;
@@ -134,7 +140,7 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
       status: err.response?.status,
       data:   JSON.stringify(err.response?.data)
     });
-    throw new Error(`LinkedIn Image Upload Failed: ${err.response?.data?.message || err.message}`);
+    throw new Error(`LinkedIn Image Upload Failed (${err.response?.status}): ${err.response?.data?.message || err.message}`);
   }
 }
 
