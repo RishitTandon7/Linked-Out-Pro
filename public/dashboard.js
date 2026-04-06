@@ -800,7 +800,7 @@ function displayPost(text, hashtags, serverImages = []) {
     selectedFiles.forEach(f => previewUrls.push(URL.createObjectURL(f)));
   } else if (serverImages && serverImages.length > 0) {
     serverImages.forEach(img => {
-      previewUrls.push(img.url || ('/uploads/' + img.filename));
+      previewUrls.push(img.storage_url || ('/uploads/' + img.filename));
     });
   }
 
