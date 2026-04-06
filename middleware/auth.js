@@ -3,6 +3,12 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_this';
 
+// In production, crash early rather than silently using the fallback secret
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set in production!');
+  process.exit(1);
+}
+
 function requireAuth(req, res, next) {
   const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
   if (!token) {

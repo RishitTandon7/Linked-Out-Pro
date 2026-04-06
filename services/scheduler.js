@@ -126,9 +126,7 @@ async function publishSinglePost(post, errorsArr = []) {
           imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
           continue;
         } catch (dlErr) {
-          errorsArr.push(`img_download(${img.filename}): ${dlErr.message}`);
-          console.warn(`⚠️ Could not download image ${img.id}:`, dlErr.message);
-          continue;
+          throw new Error(`Failed to download image ${img.filename} from Vercel storage: ${dlErr.message}`);
         }
       }
 
@@ -151,16 +149,12 @@ async function publishSinglePost(post, errorsArr = []) {
           fs.writeFileSync(filePath, resp.data);
           console.log(`📥 Re-downloaded image from Supabase Storage: ${img.filename}`);
         } catch (dlErr) {
-          errorsArr.push(`img_download(${img.filename}): ${dlErr.message}`);
-          console.warn(`⚠️ Could not download image ${img.id}:`, dlErr.message);
-          continue;
+          throw new Error(`Failed to download image ${img.filename} from storage: ${dlErr.message}`);
         }
       }
 
       if (!fs.existsSync(filePath)) {
-        errorsArr.push(`img_missing(${img.filename}): no local file and no storage_url`);
-        console.warn(`⚠️ Image ${img.id} (${img.filename}) missing — skipping`);
-        continue;
+        throw new Error(`Image ${img.filename} is missing from disk/storage. Aborting to prevent text-only post.`);
       }
 
       console.log(`📸 Attaching image: ${filePath}`);
@@ -179,9 +173,12 @@ async function publishSinglePost(post, errorsArr = []) {
 
     const now = Math.floor(Date.now() / 1000);
     if (IS_SUPABASE) {
-      await sb.from('posts').update({
+      const { error: updErr } = await sb.from('posts').update({
         status: 'published', published_at: now, linkedin_post_id: linkedinPostId, updated_at: now
       }).eq('id', post.id);
+      if (updErr) {
+        throw new Error(`CRITICAL: Published to LinkedIn (${linkedinPostId}) but DB update failed: ${updErr.message}`);
+      }
     } else {
       await run(`UPDATE posts SET status='published', published_at=?, linkedin_post_id=?, updated_at=? WHERE id=?`,
         [now, linkedinPostId, now, post.id]);
@@ -279,7 +276,7 @@ function getNextPostingSlots(settings, count = 10) {
       if (isAgentDecide) {
         // High engagement hours: 8am, 9am, 11am, 12pm, 3pm, 5pm
         const optimalHours = [8, 9, 11, 12, 15, 17];
-        // Determnistic random based on date
+        // Deterministic random based on date
         const randHour = optimalHours[(cursor.getDate() + cursor.getMonth() + slots.length) % optimalHours.length];
         cursor.setHours(randHour);
       }

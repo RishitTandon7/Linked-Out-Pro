@@ -5,28 +5,32 @@ const { requireAuth } = require('../middleware/auth');
 const { IS_SUPABASE, supabase: sb, get, all } = require('../database/db');
 
 const router = express.Router();
-const LI_BASE = 'https://api.linkedin.com/v2';
+const LI_V2_BASE  = 'https://api.linkedin.com/v2';
+const LI_REST_BASE = 'https://api.linkedin.com/rest';
 
-// Build Axios headers for LinkedIn API
+// LinkedIn API version — must match the rest of the app (services/linkedin.js)
+const LI_VERSION = '202603';
+
+// Build Axios headers for LinkedIn REST API
 const liHeaders = (token) => ({
-  Authorization: `Bearer ${token}`,
+  Authorization:               `Bearer ${token}`,
   'X-Restli-Protocol-Version': '2.0.0',
-  'LinkedIn-Version': '202304'
+  'LinkedIn-Version':          LI_VERSION
 });
 
 /**
- * Fetch social actions (likes + comments) for a single ugcPost URN.
+ * Fetch social actions (likes + comments) for a single post URN.
  * LinkedIn Social Actions API: GET /v2/socialActions/{encoded-urn}
  */
 async function getSocialActions(token, postUrn) {
   try {
     const encoded = encodeURIComponent(postUrn);
-    const res = await axios.get(`${LI_BASE}/socialActions/${encoded}`, {
+    const res = await axios.get(`${LI_V2_BASE}/socialActions/${encoded}`, {
       headers: liHeaders(token),
       timeout: 8000
     });
     return {
-      likes:    res.data?.likesSummary?.totalLikes    ?? 0,
+      likes:    res.data?.likesSummary?.totalLikes                     ?? 0,
       comments: res.data?.commentsSummary?.totalFirstLevelComments ?? 0
     };
   } catch (e) {
@@ -36,24 +40,26 @@ async function getSocialActions(token, postUrn) {
 }
 
 /**
- * Fetch the user's recent UGC posts directly from LinkedIn.
- * GET /v2/ugcPosts?q=authors&authors=List(urn:li:person:{id})
+ * Fetch the author's recent posts from LinkedIn's new REST Posts API.
+ * GET /rest/posts?q=authors&authors=urn:li:person:{id}&count=N
+ * (replaces deprecated GET /v2/ugcPosts)
  */
 async function getLinkedInPosts(token, linkedinId, count = 10) {
   try {
     const urn = `urn:li:person:${linkedinId}`;
-    const res = await axios.get(`${LI_BASE}/ugcPosts`, {
+    const res = await axios.get(`${LI_REST_BASE}/posts`, {
       params: {
-        q: 'authors',
-        authors: `List(${encodeURIComponent(urn)})`,
+        q:       'authors',
+        authors: urn,
         count,
-        start: 0
+        start:   0
       },
       headers: liHeaders(token),
       timeout: 10000
     });
     return res.data?.elements || [];
   } catch (e) {
+    console.warn('getLinkedInPosts error:', e.response?.status, e.message);
     return [];
   }
 }
@@ -125,12 +131,13 @@ router.get('/live', requireAuth, async (req, res) => {
         .slice(0, 5)
         .map(async (lp) => {
           const actions = await getSocialActions(token, lp.id);
-          const text = lp.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text || '';
+          // REST Posts API uses `commentary` for the post text
+          const text = lp.commentary || lp.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text || '';
           return {
             id:           lp.id,
             post_text:    text,
             hashtags:     '',
-            published_at: Math.floor(lp.created?.time / 1000) || null,
+            published_at: Math.floor((lp.publishedAt || lp.created?.time) / 1000) || null,
             intent:       'linkedin_native',
             urn:          lp.id,
             likes:        actions.likes,

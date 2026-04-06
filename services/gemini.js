@@ -112,10 +112,13 @@ const toneMap = {
 async function generateLinkedInPost(imageFiles, context, intent, tone) {
   const prompt = `You are an expert LinkedIn content creator and personal branding strategist.
 
-${imageFiles.length === 1
-    ? 'Analyze the provided image carefully.'
-    : `Analyze all ${imageFiles.length} provided event/related photos carefully as a set.`
-  }${context ? `\n\nAdditional context from the user: "${context}"` : ''}
+${
+  imageFiles.length === 0
+    ? 'Generate a post based solely on the context provided below.'
+    : imageFiles.length === 1
+      ? 'Analyze the provided image carefully.'
+      : `Analyze all ${imageFiles.length} provided event/related photos carefully as a set.`
+}${context ? `\n\nAdditional context from the user: "${context}"` : ''}
 
 Create a LinkedIn post with these specifications:
 - Intent: ${intentMap[intent] || intentMap.achievement}

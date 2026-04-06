@@ -1,23 +1,24 @@
 // routes/settings.js — User settings management
 const express = require('express');
-const { requireAuth }   = require('../middleware/auth');
-const { get, run }      = require('../database/db');
-const crypto            = require('crypto');
+const { requireAuth }        = require('../middleware/auth');
+const { get, run, IS_SUPABASE, supabase: sb } = require('../database/db');
+const crypto                 = require('crypto');
 
 const router = express.Router();
 
 // ---- GET /api/settings ----
 router.get('/', requireAuth, async (req, res) => {
-  const { get, run, db, IS_SUPABASE } = require('../database/db');
   let settings;
 
   try {
     if (IS_SUPABASE) {
-      const sb = require('../database/db').supabase;
       const { data } = await sb.from('user_settings').select('*').eq('user_id', req.user.id).single();
       settings = data;
       if (!settings) {
-        const { data: newSettings } = await sb.from('user_settings').upsert({ id: crypto.randomUUID(), user_id: req.user.id }).select().single();
+        const { data: newSettings } = await sb
+          .from('user_settings')
+          .upsert({ id: crypto.randomUUID(), user_id: req.user.id })
+          .select().single();
         settings = newSettings;
       }
     } else {
@@ -36,7 +37,6 @@ router.get('/', requireAuth, async (req, res) => {
 
 // ---- PATCH /api/settings ----
 router.patch('/', requireAuth, async (req, res) => {
-  const { get, run, IS_SUPABASE } = require('../database/db');
   const {
     autoPostEnabled, postsPerWeek, preferredDays, preferredTimeHour,
     autoScheduleNew, defaultIntent, defaultTone
@@ -50,7 +50,6 @@ router.patch('/', requireAuth, async (req, res) => {
   try {
     let updated;
     if (IS_SUPABASE) {
-      const sb = require('../database/db').supabase;
       
       // Update payload
       const updates = {};

@@ -6,8 +6,9 @@ const fs       = require('fs');
 const crypto   = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { generateLinkedInPost, suggestSchedule } = require('../services/gemini');
-const { run, get, all } = require('../database/db');
+const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { getNextPostingSlots } = require('../services/scheduler');
+const { uploadImage, deleteImage } = require('../services/storage');
 
 const router = express.Router();
 
@@ -49,10 +50,7 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
     const postId  = crypto.randomUUID();
     const now     = Math.floor(Date.now() / 1000);
 
-    const { IS_SUPABASE } = require('../database/db');
-    const { uploadImage } = require('../services/storage');
     if (IS_SUPABASE) {
-      const sb = require('../database/db').supabase;
       const { error: pErr } = await sb.from('posts').insert({
         id: postId, user_id: req.user.id, post_text: result.postText,
         hashtags: result.hashtags, intent, tone, ai_analysis: result.analysis,
@@ -60,10 +58,11 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
       });
       if (pErr) throw new Error('Post insert failed: ' + pErr.message);
 
-      console.log(`📝 Post ${postId} created. Saving ${req.files.length} image(s)...`);
+      const safeFiles = req.files || [];
+      console.log(`📝 Post ${postId} created. Saving ${safeFiles.length} image(s)...`);
 
-      for (let i = 0; i < req.files.length; i++) {
-        const f = req.files[i];
+      for (let i = 0; i < safeFiles.length; i++) {
+        const f = safeFiles[i];
 
         // Upload to Supabase Storage so image persists across serverless invocations
         let storageUrl = null, storagePath = null, localPath = f.path;
@@ -109,10 +108,11 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
       `, [postId, req.user.id, result.postText, result.hashtags, intent, tone, result.analysis, now, now]);
 
-      console.log(`📝 Post ${postId} created (SQLite). Saving ${req.files.length} image(s)...`);
+      const safeFiles = req.files || [];
+      console.log(`📝 Post ${postId} created (SQLite). Saving ${safeFiles.length} image(s)...`);
 
-      for (let i = 0; i < req.files.length; i++) {
-        const f = req.files[i];
+      for (let i = 0; i < safeFiles.length; i++) {
+        const f = safeFiles[i];
         // Always store absolute path so we can find the file later
         const absPath = path.resolve(f.path);
         await run(`
@@ -146,10 +146,6 @@ router.put('/images/:postId/:index', requireAuth, upload.single('image'), async 
   if (!f) return res.status(400).json({ error: 'No image provided' });
 
   try {
-    const { IS_SUPABASE } = require('../database/db');
-    const sb = IS_SUPABASE ? require('../database/db').supabase : null;
-    const { uploadImage, deleteImage } = require('../services/storage');
-
     // Make sure user owns this post
     let postExists = false;
     if (IS_SUPABASE) {
@@ -223,12 +219,10 @@ router.post('/smart-schedule', requireAuth, async (req, res) => {
   }
 
   try {
-    const { IS_SUPABASE } = require('../database/db');
     let settings = null;
     let posts = [];
 
     if (IS_SUPABASE) {
-      const sb = require('../database/db').supabase;
       const { data: sData } = await sb.from('user_settings').select('*').eq('user_id', req.user.id).single();
       settings = sData;
 

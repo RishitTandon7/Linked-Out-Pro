@@ -129,6 +129,29 @@ router.post('/', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ---- POST /api/posts/bulk-schedule ----
+// IMPORTANT: must be registered BEFORE /:id routes so Express doesn't match
+// "bulk-schedule" as a post ID
+router.post('/bulk-schedule', requireAuth, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Provide items array' });
+    const results = [];
+    for (const item of items) {
+      const post = await getPost(item.postId, req.user.id);
+      if (!post || post.status === 'published') continue;
+      const ts = Math.floor(new Date(item.scheduledAt).getTime() / 1000);
+      await updatePost(item.postId, { status: 'scheduled', scheduled_at: ts });
+
+      // Trigger notification
+      await notifyPostScheduled(req.user.id, ts);
+
+      results.push({ postId: item.postId, scheduledAt: ts });
+    }
+    res.json({ scheduled: results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ---- PATCH /api/posts/:id ----
 router.patch('/:id', requireAuth, async (req, res) => {
   try {
@@ -157,32 +180,11 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     if (isNaN(scheduledTs) || scheduledTs < Math.floor(Date.now() / 1000))
       return res.status(400).json({ error: 'scheduledAt must be a future date/time' });
     await updatePost(req.params.id, { status: 'scheduled', scheduled_at: scheduledTs });
-    
+
     // Trigger notification
     await notifyPostScheduled(req.user.id, scheduledTs);
 
     res.json({ success: true, scheduledAt: scheduledTs });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ---- POST /api/posts/bulk-schedule ----
-router.post('/bulk-schedule', requireAuth, async (req, res) => {
-  try {
-    const { items } = req.body;
-    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Provide items array' });
-    const results = [];
-    for (const item of items) {
-      const post = await getPost(item.postId, req.user.id);
-      if (!post || post.status === 'published') continue;
-      const ts = Math.floor(new Date(item.scheduledAt).getTime() / 1000);
-      await updatePost(item.postId, { status: 'scheduled', scheduled_at: ts });
-      
-      // Trigger notification
-      await notifyPostScheduled(req.user.id, ts);
-
-      results.push({ postId: item.postId, scheduledAt: ts });
-    }
-    res.json({ scheduled: results });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -226,13 +228,24 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const post = await getPost(req.params.id, req.user.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const images = await getPostImages(post.id);
+
+    // Clean up stored image files
     images.forEach(img => {
       try {
         const uDir = process.env.VERCEL ? require('os').tmpdir() : (process.env.UPLOADS_DIR || './uploads');
         fs.unlinkSync(path.join(uDir, img.filename));
       } catch {}
     });
+
     if (IS_SUPABASE) {
+      // Explicitly delete images from storage bucket and from the DB
+      const { deleteImage } = require('../services/storage');
+      for (const img of images) {
+        try {
+          if (img.storage_path) await deleteImage(img.storage_path);
+        } catch {}
+      }
+      await sb.from('post_images').delete().eq('post_id', req.params.id);
       await sb.from('posts').delete().eq('id', req.params.id).eq('user_id', req.user.id);
     } else {
       await run('DELETE FROM posts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
