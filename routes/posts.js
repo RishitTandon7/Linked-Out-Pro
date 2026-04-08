@@ -7,6 +7,7 @@ const { requireAuth }     = require('../middleware/auth');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { publishSinglePost } = require('../services/scheduler');
 const { notifyPostScheduled } = require('../services/notifications');
+const { deleteImage } = require('../services/storage');
 
 const router = express.Router();
 
@@ -239,7 +240,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
     if (IS_SUPABASE) {
       // Explicitly delete images from storage bucket and from the DB
-      const { deleteImage } = require('../services/storage');
       for (const img of images) {
         try {
           if (img.storage_path) await deleteImage(img.storage_path);

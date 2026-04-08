@@ -4,6 +4,7 @@
 
 const express = require('express');
 const { publishDuePosts } = require('../services/scheduler');
+const { IS_SUPABASE, supabase: sb } = require('../database/db');
 
 const router = express.Router();
 
@@ -53,7 +54,6 @@ router.all('/trigger', requireCronSecret, async (req, res) => {
 // Protected by the same cron secret to prevent data leakage
 router.get('/debug', requireCronSecret, async (req, res) => {
   try {
-    const { IS_SUPABASE, supabase: sb } = require('../database/db');
     const now = Math.floor(Date.now() / 1000);
 
     if (!IS_SUPABASE) {
