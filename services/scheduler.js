@@ -218,10 +218,39 @@ async function publishSinglePost(post, errorsArr = []) {
     console.error(`❌ Failed to publish post ${post.id}:`, errMsg);
     console.error(`❌ Full error:`, e.response?.data || e.stack || errMsg);
 
+    const now = Math.floor(Date.now() / 1000);
+
+    // ── DUPLICATE_POST: LinkedIn already has this post (from a prior run that published
+    //    successfully but then failed to update the DB status).
+    //    Mark it as 'published' so the cron stops retrying it forever.
+    const isDuplicate = errMsg.includes('DUPLICATE_POST') ||
+                        errMsg.includes('duplicate') ||
+                        errMsg.includes('Duplicate');
+
+    if (isDuplicate) {
+      console.warn(`⚠️  DUPLICATE_POST for post ${post.id} — already on LinkedIn. Marking as published.`);
+      try {
+        const dupId = e.response?.data?.value?.id ||
+                      e.response?.headers?.['x-restli-id'] ||
+                      'duplicate_recovered';
+        if (IS_SUPABASE) {
+          await sb.from('posts').update({
+            status: 'published', published_at: now, linkedin_post_id: dupId, updated_at: now
+          }).eq('id', post.id);
+        } else {
+          await run(`UPDATE posts SET status='published', published_at=?, linkedin_post_id=?, updated_at=? WHERE id=?`,
+            [now, dupId, now, post.id]);
+        }
+        console.log(`✅ Post ${post.id} recovered and marked as published (was a duplicate)`);
+        return true;
+      } catch (dbErr) {
+        console.error(`⚠️ Could not recover duplicate post ${post.id}:`, dbErr.message);
+      }
+    }
+
     // CRITICAL: wrap this update in its own try-catch.
     // If the DB update itself fails, we must still return false (not re-throw),
     // otherwise the post stays 'scheduled' and will be retried forever.
-    const now = Math.floor(Date.now() / 1000);
     try {
       if (IS_SUPABASE) {
         const { error: updateErr } = await sb.from('posts')
@@ -239,8 +268,6 @@ async function publishSinglePost(post, errorsArr = []) {
       }
     } catch (dbErr) {
       console.error(`⚠️ CRITICAL: Could not mark post ${post.id} as failed in DB:`, dbErr.message);
-      // Even if we can't update the DB, return false. The cron will retry next run
-      // but at least we're not throwing out of the catch which would leave it as 'scheduled'.
     }
 
     try { await notifyPostFailed(post.user_id, errMsg); } catch (err) { /* silent */ }
