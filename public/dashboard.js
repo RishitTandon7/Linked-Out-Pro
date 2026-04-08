@@ -666,10 +666,13 @@ async function generatePost() {
       if (results.length > 1) {
         showToast(`✓ ${results.length} posts forged! Auto-scheduling...`, 'success');
         // Auto-schedule all generated posts using user's preferred settings
-        for (const r of results) await autoSchedulePost(r.postId);
+        for (const r of results) await autoSchedulePost(r.postId, false);
+        // All scheduled — clear the Studio and go to Queue
+        resetStudio();
+        switchTab('queue', document.querySelector('[data-tab="queue"]'));
       } else {
         showToast('✓ Post forged! Auto-scheduling...', 'success');
-        await autoSchedulePost(first.postId);
+        await autoSchedulePost(first.postId, true);
       }
 
     } else {
@@ -692,7 +695,7 @@ async function generatePost() {
       displayPost(data.postText, data.hashtags);
       removeMultiPostNav();
       showToast('✓ Event post forged! Auto-scheduling...', 'success');
-      await autoSchedulePost(data.postId);
+      await autoSchedulePost(data.postId, true);
     }
 
     loadStats();
@@ -866,8 +869,52 @@ async function copyFull() {
   showToast('✓ Copied to clipboard!', 'success');
 }
 
+// ---- Reset Studio to a clean slate ----
+function resetStudio() {
+  // Clear file state
+  selectedFiles     = [];
+  multiPostResults  = [];
+  multiPostIndex    = 0;
+  currentPostId     = null;
+  currentPostText   = '';
+  currentHashtags   = '';
+
+  // Reset UI
+  renderPreviewStrip();
+  removeMultiPostNav();
+  updateForgeButton();
+
+  // Hide preview panel
+  const out = document.getElementById('outputSection');
+  if (out) out.classList.add('hidden');
+  const actions = document.getElementById('previewActions');
+  if (actions) actions.classList.add('hidden');
+
+  // Clear editor
+  const editPost = document.getElementById('editPost');
+  if (editPost) { editPost.value = ''; editPost.style.height = 'auto'; }
+  const editHashtags = document.getElementById('editHashtags');
+  if (editHashtags) editHashtags.value = '';
+  const hashWrap = document.getElementById('postHashtagsWrap');
+  if (hashWrap) hashWrap.classList.add('hidden');
+
+  // Clear context textarea
+  const ctx = document.getElementById('contextInput');
+  if (ctx) ctx.value = '';
+
+  // Clear image preview in LinkedIn card
+  const lkImg = document.getElementById('lkImagePreview');
+  if (lkImg) { lkImg.innerHTML = ''; lkImg.className = 'lk-media'; }
+
+  // Reset file input elements so same file can be re-selected
+  ['singleFileInput','eventFileInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
 // ---- Auto-Schedule (uses user's saved settings, no user input needed) ----
-async function autoSchedulePost(postId) {
+async function autoSchedulePost(postId, redirectToQueue = true) {
   if (!postId) return;
   try {
     // Read user's preferred settings from the UI (already loaded when settings tab renders)
@@ -906,8 +953,15 @@ async function autoSchedulePost(postId) {
     await api(`/api/posts/${postId}/schedule`, 'POST', { scheduledAt: scheduledAtSec });
 
     const label = candidate.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    showToast(`📅 Scheduled for ${label}`, 'success');
+    showToast(`📅 Sent to queue — scheduled for ${label}`, 'success');
+
     loadStats(); loadPosts();
+
+    // Clear the Studio and navigate to Queue so the user sees their scheduled post
+    if (redirectToQueue) {
+      resetStudio();
+      switchTab('queue', document.querySelector('[data-tab="queue"]'));
+    }
   } catch (e) {
     // Don't block UI — just log; post remains a draft
     console.warn('Auto-schedule failed:', e.message);
