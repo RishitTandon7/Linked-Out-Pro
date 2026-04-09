@@ -70,7 +70,12 @@ async function publishDuePosts() {
       if (usersErr) result.errors.push('users_query: ' + usersErr.message);
 
       const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
-      duePosts = posts.map(p => ({ ...p, ...userMap[p.user_id] }));
+      // CRITICAL: only copy specific user fields — do NOT spread the whole user object
+      // because user.id would overwrite post.id, causing all DB updates to use the wrong ID
+      duePosts = posts.map(p => {
+        const u = userMap[p.user_id] || {};
+        return { ...p, access_token: u.access_token, linkedin_id: u.linkedin_id };
+      });
         
     } else {
       duePosts = await all(`
