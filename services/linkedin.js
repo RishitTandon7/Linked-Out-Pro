@@ -200,6 +200,9 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
   // No content key => text-only post
 
   console.log(`📝 Posting to LinkedIn REST API as ${authorUrn}, images: ${imageUrns.length}`);
+  console.log(`📏 Commentary length: ${commentary.length} chars`);
+  console.log(`📄 Commentary start: ${commentary.slice(0, 120)}`);
+  console.log(`📄 Commentary end: ...${commentary.slice(-80)}`);
   console.log('📦 POST body:', JSON.stringify(postBody));
 
   let res;
