@@ -664,19 +664,18 @@ async function generatePost() {
       renderMultiPostNav(results, 0);
 
       if (results.length > 1) {
-        showToast(`✓ ${results.length} posts forged! Auto-scheduling...`, 'success');
-        // Auto-schedule all generated posts using user's preferred settings
+        // Multiple posts — auto-schedule all and send to Queue
+        showToast(`✓ ${results.length} posts forged! Auto-scheduling all...`, 'success');
         for (const r of results) await autoSchedulePost(r.postId, false);
-        // All scheduled — clear the Studio and go to Queue
         resetStudio();
         switchTab('queue', document.querySelector('[data-tab="queue"]'));
       } else {
-        showToast('✓ Post forged! Auto-scheduling...', 'success');
-        await autoSchedulePost(first.postId, true);
+        // Single post — stay in Studio, let the user decide (Schedule / Publish Now / Retry)
+        showToast('✓ Post forged! Review it and choose to Schedule or Publish Now.', 'success');
       }
 
     } else {
-      // Event Mode: 1 post, multiple images
+      // Event Mode: 1 post, multiple images — stay in Studio for user decision
       const formData = new FormData();
       selectedFiles.forEach(f => formData.append('images', f));
       formData.append('context', context);
@@ -694,8 +693,7 @@ async function generatePost() {
       currentHashtags = data.hashtags;
       displayPost(data.postText, data.hashtags);
       removeMultiPostNav();
-      showToast('✓ Event post forged! Auto-scheduling...', 'success');
-      await autoSchedulePost(data.postId, true);
+      showToast('✓ Event post forged! Review it and choose to Schedule or Publish Now.', 'success');
     }
 
     loadStats();
@@ -1010,10 +1008,22 @@ async function schedulePost() {
   }
 
   try {
+    // Flush the current textarea text to DB FIRST so LinkedIn gets the full, edited post text
+    const latestText = document.getElementById('editPost')?.value || currentPostText;
+    const latestTags = document.getElementById('editHashtags')?.value || currentHashtags;
+    if (latestText) {
+      await api(`/api/posts/${currentPostId}`, 'PATCH', {
+        postText: latestText, hashtags: latestTags
+      });
+      currentPostText = latestText;
+      currentHashtags = latestTags;
+    }
     // Send as Unix timestamp (seconds) so the server doesn't need to parse a timezone-ambiguous string
     await api(`/api/posts/${currentPostId}/schedule`, 'POST', { scheduledAt: Math.floor(scheduledAtMs / 1000) });
     showToast('✓ Post scheduled!', 'success');
     loadStats(); loadPosts();
+    resetStudio();
+    switchTab('queue', document.querySelector('[data-tab="queue"]'));
   } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -1041,10 +1051,20 @@ async function publishNow() {
   if (!currentPostId) { showToast('Generate a post first', 'error'); return; }
   if (!confirm('Publish this post to LinkedIn RIGHT NOW?')) return;
   try {
+    // Flush the current textarea text to DB FIRST so LinkedIn gets the full, edited post text
+    const latestText = document.getElementById('editPost')?.value || currentPostText;
+    const latestTags = document.getElementById('editHashtags')?.value || currentHashtags;
+    if (latestText) {
+      await api(`/api/posts/${currentPostId}`, 'PATCH', {
+        postText: latestText, hashtags: latestTags
+      });
+      currentPostText = latestText;
+      currentHashtags = latestTags;
+    }
     await api(`/api/posts/${currentPostId}/publish-now`, 'POST');
     showToast('🚀 Published to LinkedIn!', 'success');
     loadStats(); loadPosts();
-    document.getElementById('outputSection').classList.add('hidden');
+    resetStudio();
     switchTab('queue', document.querySelector('[data-tab="queue"]'));
   } catch (e) { showToast(e.message, 'error'); }
 }

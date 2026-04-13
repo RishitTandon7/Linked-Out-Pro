@@ -15,14 +15,34 @@ if (API_KEYS.length === 0) {
   console.warn('⚠️  No Gemini API keys configured. Set GEMINI_API_KEY_1/2/3 in .env');
 }
 
-// ---- Model Pool (only models with available free-tier RPM quota) ----
-// Ordered by capability (best first). RPM per key:
-//   gemini-2.5-flash       = 5 RPM/key
-//   gemini-2.5-flash-lite  = 10 RPM/key
-//   gemini-2.0-flash-lite  = 30 RPM/key  (fallback)
+// ---- Model Pool — all models available in this account ----
+// Ordered best-quality first; the rotation falls back to faster/cheaper
+// models automatically on 429 / 503 / 404 errors.
+//
+// Tier 1 — Stable GA (most reliable, billing-enabled)
+//   gemini-2.5-pro          → most capable, low RPM
+//   gemini-2.5-flash        → best price/perf balance
+//   gemini-2.5-flash-lite   → fastest stable GA
+//
+// Tier 2 — Preview (frontier quality, may have tighter limits)
+//   gemini-3.1-pro-preview       → newest, highest intelligence
+//   gemini-3-flash-preview       → frontier class, great throughput
+//   gemini-3.1-flash-lite-preview → frontier, lowest latency preview
+//
+// Tier 3 — Deprecated (still live, high RPM, great fallbacks)
+//   gemini-2.0-flash        → 15 RPM/key, solid quality
+//   gemini-2.0-flash-lite   → 30 RPM/key, fastest fallback
 const MODELS = [
+  // — Tier 1: Stable GA —
+  'gemini-2.5-pro',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite-preview-06-17',
+  'gemini-2.5-flash-lite',
+  // — Tier 2: Preview —
+  'gemini-3.1-pro-preview',
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite-preview',
+  // — Tier 3: Deprecated fallbacks —
+  'gemini-2.0-flash',
   'gemini-2.0-flash-lite'
 ];
 
