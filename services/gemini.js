@@ -136,26 +136,27 @@ ${
   imageFiles.length === 0
     ? 'Generate a post based solely on the context provided below.'
     : imageFiles.length === 1
-      ? 'Analyze the provided image carefully.'
+      ? 'Analyze the provided image carefully and use it as the basis for the post.'
       : `Analyze all ${imageFiles.length} provided event/related photos carefully as a set.`
 }${context ? `\n\nAdditional context from the user: "${context}"` : ''}
 
-Create a LinkedIn post with these specifications:
+Create a complete, full-length LinkedIn post with these specifications:
 - Intent: ${intentMap[intent] || intentMap.achievement}
 - Tone: ${toneMap[tone] || toneMap.professional}
 - Start with a strong, scroll-stopping hook (first line must grab attention immediately)
 - Professional yet human — no corporate-speak
-- Short paragraphs (1-3 sentences max per paragraph)
-- 1-2 relevant emojis (not excessive)
-- 100-180 words for the main post body
-- Adds real value: lesson, insight, or clear takeaway
+- Short paragraphs (2-4 sentences per paragraph), with a blank line between each
+- Write the COMPLETE post — do not cut it short. Aim for 3-5 paragraphs
+- 2-4 relevant emojis placed naturally (not stacked at the end)
+- Adds real value: include the full story, lesson, or insight — do not summarise or truncate
+- End with a clear call-to-action or reflection question to drive engagement
 - NEVER use: "I am happy to share", "Excited to announce", "Thrilled to", or similar clichés
-- Do NOT include hashtags in the post body
+- Do NOT include hashtags inside the post body itself
 
 OUTPUT — use EXACTLY this format, nothing else:
 
 POST:
-[Your LinkedIn post here]
+[Your complete LinkedIn post here — write the full text, do not truncate]
 
 HASHTAGS:
 [#tag1 #tag2 #tag3 #tag4 #tag5]
@@ -167,7 +168,7 @@ ANALYSIS:
 
   const body = {
     contents: [{ parts: [{ text: prompt }, ...imageParts] }],
-    generationConfig: { temperature: 0.9, maxOutputTokens: 2048 }
+    generationConfig: { temperature: 0.95, maxOutputTokens: 4096 }
   };
 
   const response = await callGemini(body);

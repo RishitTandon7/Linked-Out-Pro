@@ -993,9 +993,6 @@ async function schedulePost() {
   const dt = document.getElementById('scheduleDate').value;
   if (!dt) { showToast('Pick a date and time', 'error'); return; }
 
-  // datetime-local gives "YYYY-MM-DDTHH:mm" in LOCAL time.
-  // We must NOT pass it through new Date().toISOString() which converts to UTC.
-  // Instead, compute the Unix timestamp from local time parts directly.
   const [datePart, timePart] = dt.split('T');
   const [year, month, day] = datePart.split('-').map(Number);
   const [hour, minute]     = timePart.split(':').map(Number);
@@ -1008,18 +1005,15 @@ async function schedulePost() {
   }
 
   try {
-    // Flush the current textarea text to DB FIRST so LinkedIn gets the full, edited post text
+    // Send full text directly so the server writes the complete content to DB.
+    // This protects against Supabase column character-limit truncation.
     const latestText = document.getElementById('editPost')?.value || currentPostText;
     const latestTags = document.getElementById('editHashtags')?.value || currentHashtags;
-    if (latestText) {
-      await api(`/api/posts/${currentPostId}`, 'PATCH', {
-        postText: latestText, hashtags: latestTags
-      });
-      currentPostText = latestText;
-      currentHashtags = latestTags;
-    }
-    // Send as Unix timestamp (seconds) so the server doesn't need to parse a timezone-ambiguous string
-    await api(`/api/posts/${currentPostId}/schedule`, 'POST', { scheduledAt: Math.floor(scheduledAtMs / 1000) });
+    await api(`/api/posts/${currentPostId}/schedule`, 'POST', {
+      scheduledAt: Math.floor(scheduledAtMs / 1000),
+      postText:    latestText,
+      hashtags:    latestTags
+    });
     showToast('✓ Post scheduled!', 'success');
     loadStats(); loadPosts();
     resetStudio();
@@ -1051,17 +1045,15 @@ async function publishNow() {
   if (!currentPostId) { showToast('Generate a post first', 'error'); return; }
   if (!confirm('Publish this post to LinkedIn RIGHT NOW?')) return;
   try {
-    // Flush the current textarea text to DB FIRST so LinkedIn gets the full, edited post text
+    // Send the full textarea text directly in the request body.
+    // This bypasses any Supabase column character-limit truncation —
+    // the server uses this value straight to LinkedIn without a DB round-trip.
     const latestText = document.getElementById('editPost')?.value || currentPostText;
     const latestTags = document.getElementById('editHashtags')?.value || currentHashtags;
-    if (latestText) {
-      await api(`/api/posts/${currentPostId}`, 'PATCH', {
-        postText: latestText, hashtags: latestTags
-      });
-      currentPostText = latestText;
-      currentHashtags = latestTags;
-    }
-    await api(`/api/posts/${currentPostId}/publish-now`, 'POST');
+    await api(`/api/posts/${currentPostId}/publish-now`, 'POST', {
+      postText: latestText,
+      hashtags: latestTags
+    });
     showToast('🚀 Published to LinkedIn!', 'success');
     loadStats(); loadPosts();
     resetStudio();

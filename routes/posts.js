@@ -173,14 +173,20 @@ router.patch('/:id', requireAuth, async (req, res) => {
 // ---- POST /api/posts/:id/schedule ----
 router.post('/:id/schedule', requireAuth, async (req, res) => {
   try {
-    const { scheduledAt } = req.body;
+    const { scheduledAt, postText, hashtags } = req.body;
     const post = await getPost(req.params.id, req.user.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Post already published' });
     const scheduledTs = typeof scheduledAt === 'number' ? scheduledAt : Math.floor(new Date(scheduledAt).getTime() / 1000);
     if (isNaN(scheduledTs) || scheduledTs < Math.floor(Date.now() / 1000))
       return res.status(400).json({ error: 'scheduledAt must be a future date/time' });
-    await updatePost(req.params.id, { status: 'scheduled', scheduled_at: scheduledTs });
+
+    // Build update payload — always include the fresh postText/hashtags from the
+    // client if provided, so the cron job publishes the full untruncated text.
+    const updates = { status: 'scheduled', scheduled_at: scheduledTs };
+    if (postText !== undefined) updates.post_text = postText;
+    if (hashtags !== undefined) updates.hashtags  = hashtags;
+    await updatePost(req.params.id, updates);
 
     // Trigger notification
     await notifyPostScheduled(req.user.id, scheduledTs);
@@ -197,12 +203,35 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     if (post.status === 'published') return res.status(400).json({ error: 'Already published' });
     const user = await getUser(req.user.id);
 
+    // If the client sent fresh postText/hashtags, write them to DB first.
+    // This protects against any Supabase VARCHAR column limit that may silently
+    // truncate text on the initial save. We then publish using those values
+    // directly rather than re-reading from DB.
+    const freshText     = req.body?.postText;
+    const freshHashtags = req.body?.hashtags;
+    if (freshText !== undefined) {
+      await updatePost(post.id, {
+        post_text: freshText,
+        hashtags:  freshHashtags !== undefined ? freshHashtags : post.hashtags
+      });
+    }
+
     // Verify images exist in DB before publishing
     const images = await getPostImages(post.id);
     console.log(`📸 Publish-now: post ${post.id} has ${images.length} image(s) in DB`);
 
     await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
-    const fullPost = { ...post, access_token: user.access_token, linkedin_id: user.linkedin_id };
+
+    // Build the post object — prefer fresh text from request body over DB value
+    const fullPost = {
+      ...post,
+      post_text:    freshText     !== undefined ? freshText     : post.post_text,
+      hashtags:     freshHashtags !== undefined ? freshHashtags : post.hashtags,
+      access_token: user.access_token,
+      linkedin_id:  user.linkedin_id
+    };
+    console.log(`📏 Publishing post_text length: ${fullPost.post_text?.length} chars`);
+
     const result = await publishSinglePost(fullPost);
     if (!result) return res.status(500).json({ error: 'Failed to publish to LinkedIn. Check server logs.' });
     const updated = await getPost(post.id, req.user.id);
