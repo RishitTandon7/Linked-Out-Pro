@@ -155,8 +155,25 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
  * @param {Array<{path, mimetype}>} images - optional
  */
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
-  const authorUrn  = `urn:li:person:${linkedinId}`;
-  const commentary = hashtags ? `${postText}\n\n${hashtags}` : postText;
+  const authorUrn = `urn:li:person:${linkedinId}`;
+  let commentary  = hashtags ? `${postText}\n\n${hashtags}` : postText;
+
+  // LinkedIn REST API hard limit on commentary is 3000 characters.
+  // Trim gracefully: drop hashtags first, then truncate post body with ellipsis.
+  const LI_MAX = 3000;
+  if (commentary.length > LI_MAX) {
+    console.warn(`⚠️  Commentary ${commentary.length} chars > LinkedIn 3000 limit — trimming hashtags`);
+    // Try without hashtags first
+    commentary = postText;
+    if (commentary.length > LI_MAX) {
+      console.warn(`⚠️  Post body still ${commentary.length} chars > 3000 — truncating with ellipsis`);
+      commentary = commentary.slice(0, LI_MAX - 3) + '...';
+    }
+  }
+
+  // Full commentary debug log so we can verify what LinkedIn actually receives
+  console.log(`📏 Commentary length: ${commentary.length} chars`);
+  console.log(`📄 FULL commentary:\n---\n${commentary}\n---`);
 
   // Upload images first (if any)
   const imageUrns = [];
