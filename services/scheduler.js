@@ -9,7 +9,8 @@ const { notifyPostPublished, notifyPostFailed } = require('./notifications');
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
-const UPLOADS_DIR = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
+const UPLOADS_DIR    = process.env.VERCEL ? os.tmpdir() : (process.env.UPLOADS_DIR || './uploads');
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'post-images';
 
 const IS_VERCEL = process.env.VERCEL === '1';
 let schedulerRunning = false;
@@ -120,49 +121,59 @@ async function publishSinglePost(post, errorsArr = []) {
 
     const imageFiles = [];
     for (const img of images) {
-      // On Vercel: always try storage_url first — local /tmp files are gone after cold-start
-      if (IS_VERCEL && img.storage_url) {
+      // ─ Prefer: generate a fresh signed URL from storage_path (works on private or public buckets)
+      if (IS_SUPABASE && img.storage_path) {
         try {
-          const axios = require('axios');
-          const resp  = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
+          const { data: signed, error: signErr } = await sb.storage
+            .from(STORAGE_BUCKET)
+            .createSignedUrl(img.storage_path, 120);  // 2-min expiry
+
+          if (signErr || !signed?.signedUrl) {
+            throw new Error(signErr?.message || 'Signed URL generation returned no URL');
+          }
+
+          const axios   = require('axios');
+          const resp    = await axios.get(signed.signedUrl, { responseType: 'arraybuffer' });
           const tmpPath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
           fs.writeFileSync(tmpPath, resp.data);
-          console.log(`📥 Downloaded image from Supabase Storage: ${img.filename}`);
+          console.log(`📥 Image downloaded via signed URL: ${img.filename} (${resp.data.byteLength} bytes)`);
           imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
           continue;
         } catch (dlErr) {
-          throw new Error(`Failed to download image ${img.filename} from Vercel storage: ${dlErr.message}`);
+          // Hard fail so the post is marked 'failed' rather than published without images
+          throw new Error(`Image download failed for ${img.filename}: ${dlErr.message}`);
         }
       }
 
-      // Local / dev path
+      // ─ Fallback: try public storage_url (no Supabase, or no storage_path)
+      if (img.storage_url && !fs.existsSync(getLocalPath(img))) {
+        try {
+          const axios   = require('axios');
+          const resp    = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
+          const tmpPath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
+          fs.writeFileSync(tmpPath, resp.data);
+          console.log(`📥 Image downloaded via public URL: ${img.filename}`);
+          imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
+          continue;
+        } catch (dlErr) {
+          throw new Error(`Image download failed (public URL) for ${img.filename}: ${dlErr.message}`);
+        }
+      }
+
+      // ─ Last resort: local disk path (dev without Supabase storage)
       let filePath = getLocalPath(img);
       if (!path.isAbsolute(filePath)) filePath = path.resolve(filePath);
 
-      // Fallback: try UPLOADS_DIR + filename
       if (!fs.existsSync(filePath) && img.filename) {
         const fallback = path.join(path.resolve(UPLOADS_DIR), img.filename);
-        if (fs.existsSync(fallback)) { filePath = fallback; }
-      }
-
-      // Last resort: re-download from storage_url
-      if (!fs.existsSync(filePath) && img.storage_url) {
-        try {
-          const axios = require('axios');
-          const resp  = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
-          filePath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
-          fs.writeFileSync(filePath, resp.data);
-          console.log(`📥 Re-downloaded image from Supabase Storage: ${img.filename}`);
-        } catch (dlErr) {
-          throw new Error(`Failed to download image ${img.filename} from storage: ${dlErr.message}`);
-        }
+        if (fs.existsSync(fallback)) filePath = fallback;
       }
 
       if (!fs.existsSync(filePath)) {
-        throw new Error(`Image ${img.filename} is missing from disk/storage. Aborting to prevent text-only post.`);
+        throw new Error(`Image ${img.filename} missing from disk and no cloud storage path. Aborting.`);
       }
 
-      console.log(`📸 Attaching image: ${filePath}`);
+      console.log(`📸 Attaching local image: ${filePath}`);
       imageFiles.push({ path: filePath, mimetype: img.mimetype });
     }
 

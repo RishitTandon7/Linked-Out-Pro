@@ -144,8 +144,10 @@ router.post('/bulk-schedule', requireAuth, async (req, res) => {
       const ts = Math.floor(new Date(item.scheduledAt).getTime() / 1000);
       await updatePost(item.postId, { status: 'scheduled', scheduled_at: ts });
 
-      // Trigger notification
-      await notifyPostScheduled(req.user.id, ts);
+      // Notify — wrapped so a Firebase/FCM error never blocks the bulk schedule
+      try { await notifyPostScheduled(req.user.id, ts); } catch (notifErr) {
+        console.warn('Bulk-schedule notification failed (non-fatal):', notifErr.message);
+      }
 
       results.push({ postId: item.postId, scheduledAt: ts });
     }
@@ -188,8 +190,10 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     if (hashtags !== undefined) updates.hashtags  = hashtags;
     await updatePost(req.params.id, updates);
 
-    // Trigger notification
-    await notifyPostScheduled(req.user.id, scheduledTs);
+    // Notify — wrapped so a Firebase/FCM error never blocks the schedule response
+    try { await notifyPostScheduled(req.user.id, scheduledTs); } catch (notifErr) {
+      console.warn('Schedule notification failed (non-fatal):', notifErr.message);
+    }
 
     res.json({ success: true, scheduledAt: scheduledTs });
   } catch (e) { res.status(500).json({ error: e.message }); }
