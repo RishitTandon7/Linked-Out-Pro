@@ -1,5 +1,8 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
+// ---- App Version (must match server.js APP_VERSION on latest deploy) ----
+const PAGE_VERSION = '1.4.0';
+
 // ---- State ----
 let currentMode       = 'single';
 let selectedFiles     = [];
@@ -24,7 +27,42 @@ window.addEventListener('DOMContentLoaded', async () => {
   setDefaultDateTime();
   updateNotifButtonState();  // Reflect current notification permission in Settings
   startOnboarding();  // Show walkthrough for first-time users
+  checkForUpdate();                      // Check now
+  setInterval(checkForUpdate, 5 * 60 * 1000); // Re-check every 5 minutes
 });
+
+// ---- Update Check ----
+// Polls /api/version and shows a sticky banner if the server has a newer version.
+// Users simply click the banner (or the Refresh button) to reload and get the update.
+async function checkForUpdate() {
+  try {
+    const res  = await fetch('/api/version', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.version && data.version !== PAGE_VERSION) {
+      showUpdateBanner(data.version);
+    }
+  } catch { /* silent — no network or server issue */ }
+}
+
+function showUpdateBanner(newVersion) {
+  if (document.getElementById('updateBanner')) return; // already shown
+  const banner = document.createElement('div');
+  banner.id = 'updateBanner';
+  banner.style.cssText = [
+    'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
+    'background:linear-gradient(90deg,#f59e0b,#d97706)',
+    'color:#1a1200', 'font-size:0.82rem', 'font-weight:600',
+    'padding:10px 20px', 'display:flex', 'align-items:center',
+    'justify-content:center', 'gap:14px', 'box-shadow:0 2px 12px rgba(0,0,0,0.3)',
+    'animation:slideDown 0.35s ease'
+  ].join(';');
+  banner.innerHTML = `
+    <span>🚀 LinkedOut Pro <strong>v${newVersion}</strong> is available — you're on v${PAGE_VERSION}</span>
+    <button onclick="location.reload(true)" style="background:#1a1200;color:#f59e0b;border:none;border-radius:6px;padding:5px 14px;font-weight:700;cursor:pointer;font-size:0.8rem;">Refresh now</button>
+    <button onclick="this.parentElement.remove()" style="background:transparent;border:none;cursor:pointer;font-size:1rem;opacity:0.6;" title="Dismiss">×</button>
+  `;
+  document.body.prepend(banner);
+}
 
 // ========================
 // ONBOARDING WALKTHROUGH

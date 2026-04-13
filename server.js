@@ -42,6 +42,12 @@ app.use('/api/settings',  settingsRoutes);
 app.use('/api/cron',      cronRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// ---- Version endpoint — used by the client to detect when a new deploy is live ----
+const APP_VERSION = '1.4.0';
+app.get('/api/version', (req, res) => {
+  res.json({ version: APP_VERSION });
+});
+
 // ---- SPA Fallback ----
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
