@@ -1,15 +1,12 @@
 // services/linkedin.js — LinkedIn OAuth + posting service
-// Uses the NEW LinkedIn REST Posts API (202501) — NOT the deprecated v2/ugcPosts
+// Uses the new LinkedIn REST Posts API (202603) instead of deprecated UGC Posts API
 const axios = require('axios');
 const fs    = require('fs');
 
 const LI_CLIENT_ID     = (process.env.LINKEDIN_CLIENT_ID     || '').trim();
 const LI_CLIENT_SECRET = (process.env.LINKEDIN_CLIENT_SECRET || '').trim();
 const LI_CALLBACK_URL  = (process.env.LINKEDIN_CALLBACK_URL  || '').trim();
-
-// LinkedIn API version header (YYYYMM format)
-// See: https://learn.microsoft.com/en-us/linkedin/shared/api-guide/versioning
-const LI_VERSION = '202603';
+const LI_VERSION       = '202603';  // LinkedIn API version header
 
 // LinkedIn OAuth Scopes needed:
 //   openid, profile, email  → get user info
@@ -71,65 +68,43 @@ async function getUserProfile(accessToken) {
 }
 
 /**
- * Initialize an image upload with LinkedIn and get the upload URL + image URN.
- * Uses the new REST Images API (replaces deprecated v2/assets?action=registerUpload).
- */
-async function initializeImageUpload(accessToken, linkedinId) {
-  const res = await axios.post(
-    'https://api.linkedin.com/rest/images?action=initializeUpload',
-    {
-      initializeUploadRequest: {
-        owner: `urn:li:person:${linkedinId}`
-      }
-    },
-    {
-      headers: {
-        Authorization:               `Bearer ${accessToken}`,
-        'Content-Type':              'application/json',
-        'LinkedIn-Version':          LI_VERSION,
-        'X-Restli-Protocol-Version': '2.0.0'
-      }
-    }
-  );
-
-  const value = res.data?.value;
-  if (!value?.uploadUrl || !value?.image) {
-    throw new Error('LinkedIn initializeUpload: missing uploadUrl or image URN in response');
-  }
-
-  return {
-    uploadUrl: value.uploadUrl,   // PUT binary here
-    imageUrn:  value.image        // e.g. "urn:li:image:C5622AQF..."
-  };
-}
-
-/**
- * Upload an image to LinkedIn and return the image URN.
- * Uses the new REST Images API.
- *
- * IMPORTANT: The uploadUrl is a pre-signed CDN URL (like an S3 signed URL).
- * You must NOT send Authorization or LinkedIn-Version headers on the PUT —
- * those extra headers invalidate the pre-signed signature and cause a 403/400.
+ * Upload an image to LinkedIn using the new Images API and return the image URN.
+ * New API: POST /rest/images?action=initializeUpload  (LinkedIn-Version: 202603)
  */
 async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetype) {
+  const headers = {
+    Authorization:               `Bearer ${accessToken}`,
+    'Content-Type':              'application/json',
+    'LinkedIn-Version':          LI_VERSION,
+    'X-Restli-Protocol-Version': '2.0.0'
+  };
+
   try {
-    // Step 1: Initialize upload — get the pre-signed upload URL and image URN
-    const { uploadUrl, imageUrn } = await initializeImageUpload(accessToken, linkedinId);
-    console.log(`📡 LinkedIn image URN allocated: ${imageUrn}`);
+    // Step 1: Initialize the upload
+    const initRes = await axios.post(
+      'https://api.linkedin.com/rest/images?action=initializeUpload',
+      { initializeUploadRequest: { owner: `urn:li:person:${linkedinId}` } },
+      { headers }
+    );
 
-    // Step 2: PUT the raw binary to the pre-signed URL.
-    //         Only Content-Type goes here — NO Authorization or LinkedIn-Version.
+    const uploadUrl = initRes.data.value?.uploadUrl;
+    const imageUrn  = initRes.data.value?.image;
+
+    if (!uploadUrl || !imageUrn) {
+      throw new Error('LinkedIn image upload init: missing uploadUrl or image URN in response');
+    }
+
+    console.log(`📡 LinkedIn image URN: ${imageUrn}`);
+
+    // Step 2: Upload the binary image
     const imageBuffer = fs.readFileSync(imagePath);
-    console.log(`📦 Uploading ${imageBuffer.length} bytes (${mimetype || 'image/jpeg'}) to CDN...`);
-
-    const putRes = await axios.put(uploadUrl, imageBuffer, {
+    await axios.put(uploadUrl, imageBuffer, {
       headers: {
-        'Content-Type': mimetype || 'image/jpeg'
-      },
-      maxBodyLength:    Infinity,
-      maxContentLength: Infinity
+        Authorization:      `Bearer ${accessToken}`,
+        'Content-Type':     mimetype || 'image/jpeg',
+        'LinkedIn-Version': LI_VERSION
+      }
     });
-    console.log(`📤 CDN PUT status: ${putRes.status}`);
 
     console.log(`✅ Image uploaded to LinkedIn: ${imageUrn}`);
     return imageUrn;
@@ -140,118 +115,80 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
       status: err.response?.status,
       data:   JSON.stringify(err.response?.data)
     });
-    throw new Error(`LinkedIn Image Upload Failed (${err.response?.status}): ${err.response?.data?.message || err.message}`);
+    throw new Error(`LinkedIn Image Upload Failed: ${err.response?.data?.message || err.message}`);
   }
 }
 
 /**
  * Publish a post to LinkedIn using the new REST Posts API.
- * Replaces deprecated v2/ugcPosts.
+ * Supports: text-only, single image, and multi-image posts.
  *
  * @param {string} accessToken
  * @param {string} linkedinId
  * @param {string} postText
  * @param {string} hashtags
- * @param {Array<{path, mimetype}>} images - optional
+ * @param {Array<{path, mimetype}>} images  - optional
  */
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
-  const authorUrn = `urn:li:person:${linkedinId}`;
-  let commentary  = hashtags ? `${postText}\n\n${hashtags}` : postText;
+  const authorUrn  = `urn:li:person:${linkedinId}`;
+  const commentary = hashtags ? `${postText}\n\n${hashtags}` : postText;
 
-  // LinkedIn REST API hard limit on commentary is 3000 characters.
-  // Trim gracefully: drop hashtags first, then truncate post body with ellipsis.
-  const LI_MAX = 3000;
-  if (commentary.length > LI_MAX) {
-    console.warn(`⚠️  Commentary ${commentary.length} chars > LinkedIn 3000 limit — trimming hashtags`);
-    // Try without hashtags first
-    commentary = postText;
-    if (commentary.length > LI_MAX) {
-      console.warn(`⚠️  Post body still ${commentary.length} chars > 3000 — truncating with ellipsis`);
-      commentary = commentary.slice(0, LI_MAX - 3) + '...';
-    }
-  }
+  const headers = {
+    Authorization:               `Bearer ${accessToken}`,
+    'Content-Type':              'application/json',
+    'LinkedIn-Version':          LI_VERSION,
+    'X-Restli-Protocol-Version': '2.0.0'
+  };
 
-  // Full commentary debug log so we can verify what LinkedIn actually receives
-  console.log(`📏 Commentary length: ${commentary.length} chars`);
-  console.log(`📄 FULL commentary:\n---\n${commentary}\n---`);
-
-  // Upload images first (if any)
-  const imageUrns = [];
-  if (images && images.length > 0) {
-    for (const img of images) {
-      console.log(`📤 Uploading image to LinkedIn: ${img.path}`);
-      const urn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
-      imageUrns.push(urn);
-    }
-  }
-
-  // Build the post body per the new REST Posts API schema.
-  // IMPORTANT: Do NOT include targetEntities or thirdPartyDistributionChannels
-  // as empty arrays — LinkedIn returns 422 for empty optional arrays.
-  // Only include fields that have actual values.
+  // Build base post body
   const postBody = {
     author:         authorUrn,
     commentary,
     visibility:     'PUBLIC',
-    distribution: {
-      feedDistribution: 'MAIN_FEED'
-      // targetEntities and thirdPartyDistributionChannels omitted when not targeting
-    },
+    distribution:   { feedDistribution: 'MAIN_FEED' },
     lifecycleState: 'PUBLISHED'
-    // isReshareDisabledByAuthor omitted (optional, defaults to false)
   };
 
-  if (imageUrns.length === 1) {
-    // Single image post
-    postBody.content = {
-      media: { id: imageUrns[0] }
-    };
-  } else if (imageUrns.length > 1) {
-    // Multi-image post (LinkedIn supports up to 9 images)
-    postBody.content = {
-      multiImage: {
-        images: imageUrns.map(id => ({ id, altText: '' }))
+  // Upload images and attach to post
+  if (images && images.length > 0) {
+    const imageUrns = [];
+
+    for (const img of images) {
+      try {
+        console.log(`📤 Uploading image to LinkedIn: ${img.path}`);
+        const urn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
+        imageUrns.push(urn);
+      } catch (e) {
+        console.error('❌ LinkedIn image upload failed:', e.message);
+        throw e; // Stop — don't post text if images were intended but failed
       }
-    };
-  }
-  // No content key => text-only post
+    }
 
-  console.log(`📝 Posting to LinkedIn REST API as ${authorUrn}, images: ${imageUrns.length}`);
-  console.log(`📏 Commentary length: ${commentary.length} chars`);
-  console.log(`📄 Commentary start: ${commentary.slice(0, 120)}`);
-  console.log(`📄 Commentary end: ...${commentary.slice(-80)}`);
-  console.log('📦 POST body:', JSON.stringify(postBody));
-
-  let res;
-  try {
-    res = await axios.post(
-      'https://api.linkedin.com/rest/posts',
-      postBody,
-      {
-        headers: {
-          Authorization:               `Bearer ${accessToken}`,
-          'Content-Type':              'application/json',
-          'LinkedIn-Version':          LI_VERSION,
-          'X-Restli-Protocol-Version': '2.0.0'
+    if (imageUrns.length === 1) {
+      // Single image
+      postBody.content = {
+        media: { id: imageUrns[0] }
+      };
+    } else {
+      // Multi-image carousel
+      postBody.content = {
+        multiImage: {
+          images: imageUrns.map(id => ({ id }))
         }
-      }
-    );
-  } catch (err) {
-    // Log the full LinkedIn error response for Vercel log inspection
-    console.error('❌ LinkedIn POST /rest/posts failed:', {
-      status:  err.response?.status,
-      headers: JSON.stringify(err.response?.headers),
-      body:    JSON.stringify(err.response?.data)
-    });
-    throw new Error(
-      `LinkedIn API error ${err.response?.status}: ` +
-      JSON.stringify(err.response?.data || err.message)
-    );
+      };
+    }
   }
 
-  // The post ID is in the x-restli-id header
+  console.log(`📝 Posting to LinkedIn REST API...`);
+  console.log(`   Author: ${authorUrn}`);
+  console.log(`   Commentary length: ${commentary.length} chars`);
+  console.log(`   Images: ${images.length}`);
+
+  const res = await axios.post('https://api.linkedin.com/rest/posts', postBody, { headers });
+
+  // The post ID is in the X-RestLi-Id header
   const postId = res.headers['x-restli-id'] || res.data?.id || 'unknown';
-  console.log(`✅ LinkedIn post created: ${postId}`);
+  console.log(`✅ Post published to LinkedIn! ID: ${postId}`);
   return postId;
 }
 
