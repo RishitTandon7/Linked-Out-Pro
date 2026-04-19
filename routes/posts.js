@@ -164,7 +164,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (post.status === 'published') return res.status(400).json({ error: 'Cannot edit a published post' });
     const updates = {};
     if (postText  !== undefined) {
-      if (post.post_text && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
+      if (post.post_text && postText.length < (post.post_text.length * 0.60)) {
         console.warn(`[Safeguard Save] Clipped text detected (${postText.length} vs ${post.post_text.length}). Restoring full text.`);
         updates.post_text = post.post_text;
       } else {
@@ -194,7 +194,7 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     // client if provided, so the cron job publishes the full untruncated text.
     const updates = { status: 'scheduled', scheduled_at: scheduledTs };
     if (postText !== undefined) {
-      if (post.post_text && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
+      if (post.post_text && postText.length < (post.post_text.length * 0.60)) {
         console.warn(`[Safeguard Schedule] Clipped text detected (${postText.length} vs ${post.post_text.length}). Restoring full text.`);
         updates.post_text = post.post_text;
       } else {
@@ -231,11 +231,11 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     let postText  = (req.body?.postText  !== undefined) ? req.body.postText  : post.post_text;
     const hashtags  = (req.body?.hashtags  !== undefined) ? req.body.hashtags  : post.hashtags;
 
-    // ── FRONTEND CLIPPING SAFEGUARD ──
-    // If the frontend text is mysteriously shorter, but it perfectly matches the beginning of the DB text,
-    // it was truncated by a rogue UI element. Restore the full text!
-    if (postText && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
-      console.warn(`[Safeguard] UI sent clipped text (${postText.length} chars). Restoring to full ${post.post_text.length} chars from DB.`);
+    // ── FRONTEND CLIPPING SAFEGUARD (V2) ──
+    // The browser sometimes converts curly quotes (’) to straight quotes (') or crops text.
+    // If the submitted text drops more than 40% of the DB's text length suddenly, it's definitely a clipping bug.
+    if (postText && post.post_text && postText.length < (post.post_text.length * 0.60)) {
+      console.warn(`[Safeguard] UI sent clipped text (${postText.length} chars). DB has ${post.post_text.length} chars. Restoring to full text.`);
       postText = post.post_text;
     }
 
