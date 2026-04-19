@@ -201,59 +201,96 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
 
 // ---- POST /api/posts/:id/publish-now ----
 router.post('/:id/publish-now', requireAuth, async (req, res) => {
+  const { publishPost } = require('../services/linkedin');
+  const { getLocalPath } = require('../services/storage');
+  const fs   = require('fs');
+  const path = require('path');
+  const os   = require('os');
+
   try {
     const post = await getPost(req.params.id, req.user.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Already published' });
     const user = await getUser(req.user.id);
 
-    // Prefer the full text sent directly in the request body.
-    // IMPORTANT: we do NOT write freshText to DB before publishing — that
-    // round-trip risks silent truncation if the live Supabase column has any
-    // length constraint. We pass the text straight through to LinkedIn instead.
-    const freshText     = req.body?.postText;
-    const freshHashtags = req.body?.hashtags;
+    // ── TEXT: always use what the client sends. Never touch the DB for text. ──
+    const postText  = (req.body?.postText  !== undefined) ? req.body.postText  : post.post_text;
+    const hashtags  = (req.body?.hashtags  !== undefined) ? req.body.hashtags  : post.hashtags;
 
-    // Only update DB metadata (scheduled_at) — never post_text, to avoid truncation
-    await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
+    console.log(`\n🚀 PUBLISH-NOW post ${post.id}`);
+    console.log(`   postText source : ${req.body?.postText !== undefined ? 'REQUEST BODY' : 'DB FALLBACK'}`);
+    console.log(`   postText length : ${postText?.length} chars`);
+    console.log(`   postText preview: ${postText?.slice(0, 80)}...`);
 
-    // Verify images exist in DB before publishing
+    // ── IMAGES: fetch from Supabase storage ──
+    const { IS_SUPABASE, supabase: sb } = require('../database/db');
+    const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'post-images';
+    const axios = require('axios');
     const images = await getPostImages(post.id);
-    console.log(`📸 Publish-now: post ${post.id} has ${images.length} image(s) in DB`);
+    const imageFiles = [];
 
-    // Build the post object — always prefer fresh text from request body over DB value
-    const resolvedText     = freshText     !== undefined ? freshText     : post.post_text;
-    const resolvedHashtags = freshHashtags !== undefined ? freshHashtags : post.hashtags;
-    console.log(`📏 Resolved post_text length: ${resolvedText?.length} chars (source: ${freshText !== undefined ? 'request body' : 'DB'})`);
-
-    const fullPost = {
-      ...post,
-      post_text:    resolvedText,
-      hashtags:     resolvedHashtags,
-      access_token: user.access_token,
-      linkedin_id:  user.linkedin_id
-    };
-
-    const result = await publishSinglePost(fullPost);
-    if (!result) return res.status(500).json({ error: 'Failed to publish to LinkedIn. Check server logs.' });
-
-    // After successful publish, update the DB post_text with the full text
-    // (best-effort — failure here doesn't undo the LinkedIn post)
-    try {
-      if (freshText !== undefined) {
-        await updatePost(post.id, { post_text: freshText, hashtags: resolvedHashtags });
+    for (const img of images) {
+      try {
+        if (IS_SUPABASE && img.storage_path) {
+          const { data: signed } = await sb.storage.from(STORAGE_BUCKET).createSignedUrl(img.storage_path, 120);
+          if (signed?.signedUrl) {
+            const resp = await axios.get(signed.signedUrl, { responseType: 'arraybuffer' });
+            const tmpPath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
+            fs.writeFileSync(tmpPath, resp.data);
+            imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
+            continue;
+          }
+        }
+        if (img.storage_url) {
+          const resp = await axios.get(img.storage_url, { responseType: 'arraybuffer' });
+          const tmpPath = path.join(os.tmpdir(), img.filename || `img_${img.id}`);
+          fs.writeFileSync(tmpPath, resp.data);
+          imageFiles.push({ path: tmpPath, mimetype: img.mimetype });
+          continue;
+        }
+        // local fallback (dev)
+        let localPath = getLocalPath(img);
+        if (!path.isAbsolute(localPath)) localPath = path.resolve(localPath);
+        if (fs.existsSync(localPath)) imageFiles.push({ path: localPath, mimetype: img.mimetype });
+      } catch (imgErr) {
+        console.error(`❌ Image ${img.filename} fetch failed:`, imgErr.message);
+        throw new Error(`Image download failed: ${imgErr.message}`);
       }
-    } catch (dbErr) {
-      console.warn('⚠️  Could not update post_text in DB after publish (non-fatal):', dbErr.message);
     }
 
+    console.log(`   images          : ${imageFiles.length}/${images.length}`);
+
+    // ── CALL LINKEDIN DIRECTLY ──
+    const linkedinPostId = await publishPost(
+      user.access_token,
+      user.linkedin_id,
+      postText,
+      hashtags,
+      imageFiles
+    );
+
+    // ── UPDATE DB STATUS ──
+    const now = Math.floor(Date.now() / 1000);
+    if (IS_SUPABASE) {
+      await sb.from('posts').update({
+        status: 'published', published_at: now, linkedin_post_id: linkedinPostId, updated_at: now
+      }).eq('id', post.id);
+    } else {
+      const { run } = require('../database/db');
+      await run(`UPDATE posts SET status='published', published_at=?, linkedin_post_id=?, updated_at=? WHERE id=?`,
+        [now, linkedinPostId, now, post.id]);
+    }
+
+    console.log(`✅ Post ${post.id} published to LinkedIn: ${linkedinPostId}`);
     const updated = await getPost(post.id, req.user.id);
     res.json({ success: true, post: updated });
+
   } catch (e) {
-    console.error('Publish-now error:', e.message);
+    console.error('Publish-now error:', e.message, e.response?.data || '');
     res.status(500).json({ error: e.message });
   }
 });
+
 
 // ---- POST /api/posts/:id/unschedule ----
 router.post('/:id/unschedule', requireAuth, async (req, res) => {
