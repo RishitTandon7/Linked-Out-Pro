@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.4.0';
+const PAGE_VERSION = '1.4.1';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -1102,7 +1102,13 @@ async function publishNow() {
 async function publishNowById(id) {
   if (!confirm('Publish this post to LinkedIn RIGHT NOW?')) return;
   try {
-    await api(`/api/posts/${id}/publish-now`, 'POST');
+    // Pass full postText from cache straight to the server so LinkedIn receives
+    // the complete text — bypasses any Supabase VARCHAR column truncation.
+    const cached = postsCache.find(p => p.id === id);
+    const body = cached
+      ? { postText: cached.post_text, hashtags: cached.hashtags || '' }
+      : {};
+    await api(`/api/posts/${id}/publish-now`, 'POST', body);
     showToast('🚀 Published!', 'success');
     loadStats(); loadPosts(currentFilter);
   } catch (e) { showToast(e.message, 'error'); }
@@ -1172,7 +1178,14 @@ async function queueScheduleConfirm(id) {
   }
 
   try {
-    await api(`/api/posts/${id}/schedule`, 'POST', { scheduledAt: Math.floor(scheduledAtMs / 1000) });
+    // Pass full postText from cache to protect against Supabase VARCHAR truncation.
+    const cached = postsCache.find(p => p.id === id);
+    const payload = { scheduledAt: Math.floor(scheduledAtMs / 1000) };
+    if (cached) {
+      payload.postText = cached.post_text;
+      payload.hashtags = cached.hashtags || '';
+    }
+    await api(`/api/posts/${id}/schedule`, 'POST', payload);
     showToast('✓ Post scheduled!', 'success');
     loadStats(); loadPosts(currentFilter);
   } catch (e) { showToast(e.message, 'error'); }
