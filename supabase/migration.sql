@@ -102,3 +102,12 @@ USING (bucket_id = 'post-images');
 
 -- ✅ Done!
 SELECT 'LinkedOut Pro schema created successfully!' AS status;
+
+-- =======================================================
+--  SAFE MIGRATION: Ensure post_text is TEXT (unlimited)
+--  Run this if posts are being truncated on LinkedIn.
+--  Safe to run on existing databases — no data loss.
+-- =======================================================
+ALTER TABLE posts ALTER COLUMN post_text TYPE TEXT;
+ALTER TABLE posts ALTER COLUMN hashtags  TYPE TEXT;
+ALTER TABLE posts ALTER COLUMN fail_reason TYPE TEXT;

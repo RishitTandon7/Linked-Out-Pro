@@ -207,37 +207,46 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     if (post.status === 'published') return res.status(400).json({ error: 'Already published' });
     const user = await getUser(req.user.id);
 
-    // If the client sent fresh postText/hashtags, write them to DB first.
-    // This protects against any Supabase VARCHAR column limit that may silently
-    // truncate text on the initial save. We then publish using those values
-    // directly rather than re-reading from DB.
+    // Prefer the full text sent directly in the request body.
+    // IMPORTANT: we do NOT write freshText to DB before publishing — that
+    // round-trip risks silent truncation if the live Supabase column has any
+    // length constraint. We pass the text straight through to LinkedIn instead.
     const freshText     = req.body?.postText;
     const freshHashtags = req.body?.hashtags;
-    if (freshText !== undefined) {
-      await updatePost(post.id, {
-        post_text: freshText,
-        hashtags:  freshHashtags !== undefined ? freshHashtags : post.hashtags
-      });
-    }
+
+    // Only update DB metadata (scheduled_at) — never post_text, to avoid truncation
+    await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
 
     // Verify images exist in DB before publishing
     const images = await getPostImages(post.id);
     console.log(`📸 Publish-now: post ${post.id} has ${images.length} image(s) in DB`);
 
-    await updatePost(post.id, { scheduled_at: Math.floor(Date.now() / 1000) });
+    // Build the post object — always prefer fresh text from request body over DB value
+    const resolvedText     = freshText     !== undefined ? freshText     : post.post_text;
+    const resolvedHashtags = freshHashtags !== undefined ? freshHashtags : post.hashtags;
+    console.log(`📏 Resolved post_text length: ${resolvedText?.length} chars (source: ${freshText !== undefined ? 'request body' : 'DB'})`);
 
-    // Build the post object — prefer fresh text from request body over DB value
     const fullPost = {
       ...post,
-      post_text:    freshText     !== undefined ? freshText     : post.post_text,
-      hashtags:     freshHashtags !== undefined ? freshHashtags : post.hashtags,
+      post_text:    resolvedText,
+      hashtags:     resolvedHashtags,
       access_token: user.access_token,
       linkedin_id:  user.linkedin_id
     };
-    console.log(`📏 Publishing post_text length: ${fullPost.post_text?.length} chars`);
 
     const result = await publishSinglePost(fullPost);
     if (!result) return res.status(500).json({ error: 'Failed to publish to LinkedIn. Check server logs.' });
+
+    // After successful publish, update the DB post_text with the full text
+    // (best-effort — failure here doesn't undo the LinkedIn post)
+    try {
+      if (freshText !== undefined) {
+        await updatePost(post.id, { post_text: freshText, hashtags: resolvedHashtags });
+      }
+    } catch (dbErr) {
+      console.warn('⚠️  Could not update post_text in DB after publish (non-fatal):', dbErr.message);
+    }
+
     const updated = await getPost(post.id, req.user.id);
     res.json({ success: true, post: updated });
   } catch (e) {

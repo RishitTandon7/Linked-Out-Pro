@@ -178,6 +178,7 @@ async function publishSinglePost(post, errorsArr = []) {
     }
 
     console.log(`📤 Publishing post ${post.id} with ${imageFiles.length}/${images.length} image(s)...`);
+    console.log(`📏 post_text length going to LinkedIn: ${post.post_text?.length} chars`);
 
     const linkedinPostId = await publishPost(
       post.access_token,
