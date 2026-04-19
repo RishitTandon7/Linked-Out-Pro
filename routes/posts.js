@@ -163,7 +163,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Cannot edit a published post' });
     const updates = {};
-    if (postText  !== undefined) updates.post_text = postText;
+    if (postText  !== undefined) {
+      if (post.post_text && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
+        console.warn(`[Safeguard Save] Clipped text detected (${postText.length} vs ${post.post_text.length}). Restoring full text.`);
+        updates.post_text = post.post_text;
+      } else {
+        updates.post_text = postText;
+      }
+    }
     if (hashtags  !== undefined) updates.hashtags  = hashtags;
     if (intent    !== undefined) updates.intent    = intent;
     if (tone      !== undefined) updates.tone      = tone;
@@ -186,7 +193,14 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     // Build update payload — always include the fresh postText/hashtags from the
     // client if provided, so the cron job publishes the full untruncated text.
     const updates = { status: 'scheduled', scheduled_at: scheduledTs };
-    if (postText !== undefined) updates.post_text = postText;
+    if (postText !== undefined) {
+      if (post.post_text && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
+        console.warn(`[Safeguard Schedule] Clipped text detected (${postText.length} vs ${post.post_text.length}). Restoring full text.`);
+        updates.post_text = post.post_text;
+      } else {
+        updates.post_text = postText;
+      }
+    }
     if (hashtags !== undefined) updates.hashtags  = hashtags;
     await updatePost(req.params.id, updates);
 
@@ -214,8 +228,16 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     const user = await getUser(req.user.id);
 
     // ── TEXT: always use what the client sends. Never touch the DB for text. ──
-    const postText  = (req.body?.postText  !== undefined) ? req.body.postText  : post.post_text;
+    let postText  = (req.body?.postText  !== undefined) ? req.body.postText  : post.post_text;
     const hashtags  = (req.body?.hashtags  !== undefined) ? req.body.hashtags  : post.hashtags;
+
+    // ── FRONTEND CLIPPING SAFEGUARD ──
+    // If the frontend text is mysteriously shorter, but it perfectly matches the beginning of the DB text,
+    // it was truncated by a rogue UI element. Restore the full text!
+    if (postText && postText.length < post.post_text.length && post.post_text.startsWith(postText.trim())) {
+      console.warn(`[Safeguard] UI sent clipped text (${postText.length} chars). Restoring to full ${post.post_text.length} chars from DB.`);
+      postText = post.post_text;
+    }
 
     console.log(`\n🚀 PUBLISH-NOW post ${post.id}`);
     console.log(`   postText source : ${req.body?.postText !== undefined ? 'REQUEST BODY' : 'DB FALLBACK'}`);
