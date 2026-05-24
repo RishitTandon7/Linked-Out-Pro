@@ -137,6 +137,11 @@ router.post('/bulk-schedule', requireAuth, async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'Provide items array' });
+    const user = await getUser(req.user.id);
+    if (user.linkedin_id && user.linkedin_id.startsWith('google_')) {
+      return res.status(400).json({ error: 'You must sign in with LinkedIn to schedule posts.' });
+    }
+
     const results = [];
     for (const item of items) {
       const post = await getPost(item.postId, req.user.id);
@@ -189,6 +194,11 @@ router.post('/:id/schedule', requireAuth, async (req, res) => {
     const post = await getPost(req.params.id, req.user.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Post already published' });
+
+    const user = await getUser(req.user.id);
+    if (user.linkedin_id && user.linkedin_id.startsWith('google_')) {
+      return res.status(400).json({ error: 'You must sign in with LinkedIn to schedule posts.' });
+    }
     const scheduledTs = typeof scheduledAt === 'number' ? scheduledAt : Math.floor(new Date(scheduledAt).getTime() / 1000);
     if (isNaN(scheduledTs) || scheduledTs < Math.floor(Date.now() / 1000))
       return res.status(400).json({ error: 'scheduledAt must be a future date/time' });
@@ -231,6 +241,10 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.status === 'published') return res.status(400).json({ error: 'Already published' });
     const user = await getUser(req.user.id);
+
+    if (user.linkedin_id && user.linkedin_id.startsWith('google_')) {
+      return res.status(400).json({ error: 'You must sign in with LinkedIn to publish posts. Google sign-in is currently view-only.' });
+    }
 
     // ── TEXT: always use what the client sends. Never touch the DB for text. ──
     let postText  = (req.body?.postText  !== undefined) ? req.body.postText  : post.post_text;
