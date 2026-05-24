@@ -1,22 +1,34 @@
 // routes/cron.js
-// Called by GitHub Actions on a schedule to publish due posts
-// Protected by a CRON_SECRET header — never expose this secret
+// Triggered by:
+//   1. GitHub Actions every 5 min (x-cron-secret header) — offline backup
+//   2. Dashboard client every 60s (JWT session cookie) — real-time, when app is open
+// The debug endpoint remains secret-only.
 
 const express = require('express');
+const jwt     = require('jsonwebtoken');
 const { publishDuePosts } = require('../services/scheduler');
 const { IS_SUPABASE, supabase: sb } = require('../database/db');
 
 const router = express.Router();
 
-// ---- Secret validation middleware ----
+const JWT_SECRET  = process.env.JWT_SECRET  || 'fallback_secret_change_this';
+
+// ---- Secret validation middleware (GitHub Actions / manual) ----
 function requireCronSecret(req, res, next) {
   const CRON_SECRET = process.env.CRON_SECRET;
-  // If no secret is configured, allow (dev mode)
   if (!CRON_SECRET) return next();
 
+  // Vercel native cron header (future-proofing)
+  if (req.headers['x-vercel-cron'] === '1') return next();
+
+  const authHeader  = req.headers['authorization'] || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
   const provided = req.headers['x-cron-secret'] ||
-                   req.query.secret ||
+                   req.query.secret              ||
+                   bearerToken                   ||
                    req.body?.secret;
+
   if (provided !== CRON_SECRET) {
     console.warn('🚫 Cron: invalid or missing secret from', req.ip);
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -24,16 +36,53 @@ function requireCronSecret(req, res, next) {
   next();
 }
 
+// ---- Dual-auth middleware for /trigger ----
+// Accepts EITHER the cron secret (GitHub Actions) OR a valid user JWT session (dashboard)
+function requireCronOrUser(req, res, next) {
+  const CRON_SECRET = process.env.CRON_SECRET;
+
+  // No secret configured = dev mode, allow all
+  if (!CRON_SECRET) { req.cronSource = 'dev'; return next(); }
+
+  // Vercel native cron
+  if (req.headers['x-vercel-cron'] === '1') { req.cronSource = 'vercel'; return next(); }
+
+  // Check cron secret (GitHub Actions)
+  const authHeader  = req.headers['authorization'] || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const secretProvided = req.headers['x-cron-secret'] ||
+                         req.query.secret              ||
+                         bearerToken                   ||
+                         req.body?.secret;
+  if (secretProvided === CRON_SECRET) { req.cronSource = 'github-actions'; return next(); }
+
+  // Check JWT session cookie (logged-in dashboard user)
+  const token = req.cookies?.token;
+  if (token) {
+    try {
+      jwt.verify(token, JWT_SECRET);
+      req.cronSource = 'dashboard-client';
+      return next();
+    } catch { /* invalid token — fall through to 401 */ }
+  }
+
+  console.warn('🚫 Cron /trigger: unauthorized from', req.ip);
+  return res.status(401).json({ ok: false, error: 'Unauthorized' });
+}
+
 // ---- GET/POST /api/cron/trigger ----
-// Vercel Cron or GitHub Actions calls this periodically
-router.all('/trigger', requireCronSecret, async (req, res) => {
-  console.log(`🔔 Cron triggered (${req.method}) at`, new Date().toISOString());
+// Called by GitHub Actions (offline backup) and dashboard client (real-time, every 60s)
+router.all('/trigger', requireCronOrUser, async (req, res) => {
+  console.log(`🔔 Cron triggered by [${req.cronSource || 'unknown'}] at`, new Date().toISOString());
   try {
     const result = await publishDuePosts();
-    console.log('🔔 Cron result:', JSON.stringify(result));
+    if (result?.published > 0) {
+      console.log(`🔔 Cron result: published=${result.published}, failed=${result.failed}`);
+    }
     res.json({
       ok:             true,
       triggeredAt:    new Date().toISOString(),
+      source:         req.cronSource || 'unknown',
       published:      result?.published  || 0,
       failed:         result?.failed     || 0,
       skipped:        result?.skipped    || 0,
@@ -48,6 +97,7 @@ router.all('/trigger', requireCronSecret, async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+
 
 // ---- GET /api/cron/debug ----
 // Returns current state of scheduled/failed posts and their fail_reason

@@ -29,7 +29,44 @@ window.addEventListener('DOMContentLoaded', async () => {
   startOnboarding();  // Show walkthrough for first-time users
   checkForUpdate();                      // Check now
   setInterval(checkForUpdate, 5 * 60 * 1000); // Re-check every 5 minutes
+  startClientScheduler();  // Client-driven scheduler: publishes due posts every 60s
 });
+
+// ---- Client-Driven Scheduler ----
+// Pings /api/cron/trigger every 60 seconds while the dashboard is open.
+// This gives real-time post publishing without needing paid cron services.
+// GitHub Actions runs every 5 min as an offline backup.
+let _schedulerInterval = null;
+
+function startClientScheduler() {
+  // Fire once immediately to catch any posts that are already overdue
+  triggerCronSilent();
+
+  // Then fire every 60 seconds while the tab is visible
+  _schedulerInterval = setInterval(() => {
+    if (!document.hidden) triggerCronSilent();
+  }, 60 * 1000);
+
+  // When user switches back to this tab, fire immediately (catches missed ticks)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) triggerCronSilent();
+  });
+}
+
+async function triggerCronSilent() {
+  try {
+    const res  = await fetch('/api/cron/trigger', { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+    if (data.published > 0) {
+      console.log(`✅ Client scheduler: published ${data.published} post(s)`);
+      // Refresh the queue so newly-published posts show up
+      loadStats();
+      loadPosts(currentFilter);
+    }
+  } catch {
+    // Silent — network errors or server being cold-started are non-fatal
+  }
+}
 
 // ---- Update Check ----
 // Polls /api/version and shows a sticky banner if the server has a newer version.
@@ -1151,6 +1188,10 @@ function openScheduleFromQueue(id) {
       <input type="datetime-local" id="queue-dt-${id}" class="forge-input date-input" value="${defaultDt}" style="flex:1;min-width:140px;padding:6px;font-size:0.75rem" />
       <button class="q-btn primary" onclick="queueScheduleConfirm('${id}')">Confirm</button>
       <button class="q-btn" onclick="queueScheduleCancel('${id}')">Cancel</button>
+    </div>
+    <div class="schedule-timing-notice" style="margin-top:6px">
+      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Posts may publish 5–15 min after the set time
     </div>
   `;
 }

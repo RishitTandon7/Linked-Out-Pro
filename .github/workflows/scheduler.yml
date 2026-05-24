@@ -1,18 +1,23 @@
 # .github/workflows/scheduler.yml
-# Runs every 5 minutes and hits /api/cron/trigger to publish any due scheduled posts.
+# Backup scheduler — runs every 5 minutes to catch any posts that Vercel's
+# native cron may have missed (e.g. during cold starts or Vercel outages).
+#
+# PRIMARY scheduler: Vercel native cron (vercel.json → "crons") runs every 1 min
+# BACKUP scheduler: This GitHub Actions workflow runs every 5 minutes
 #
 # REQUIRED SECRETS (GitHub repo → Settings → Secrets and variables → Actions):
 #   CRON_SECRET  — same value as CRON_SECRET in your Vercel environment variables
 #   APP_BASE_URL — your Vercel deployment URL, e.g. https://linked-out-pro.vercel.app
 #
 # NOTE: GitHub Actions free-tier scheduled workflows may be delayed up to 15 min
-#       during high load. workflow_dispatch lets you trigger manually at any time.
+#       during high load. The Vercel native cron is the primary, reliable trigger.
+#       workflow_dispatch lets you trigger manually at any time for debugging.
 
-name: Publish Scheduled Posts
+name: Backup Post Scheduler
 
 on:
   schedule:
-    # Every 5 minutes (GitHub Actions minimum granularity)
+    # Every 5 minutes (backup to Vercel's native every-1-minute cron)
     - cron: '*/5 * * * *'
 
   # Allow manual trigger from the Actions tab for debugging
@@ -30,7 +35,7 @@ jobs:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
         run: |
           BASE="${APP_BASE_URL:-https://linked-out-pro.vercel.app}"
-          echo "🔔 Triggering cron at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🔔 Backup cron triggered at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "📡 Endpoint: ${BASE}/api/cron/trigger"
 
           # Attempt with up to 3 retries (10s gap) in case of transient errors
