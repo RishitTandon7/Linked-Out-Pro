@@ -120,14 +120,25 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
 }
 
 /**
- * Escape special Rest.li characters in the commentary text.
+ * Sanitize special Rest.li characters in the commentary text.
  * The LinkedIn REST API's commentary field is parsed by Rest.li, which treats
  * special characters like parentheses (), brackets [], braces {}, etc. as control
- * characters, causing silent truncation of the post content from that point.
+ * characters (causing silent truncation of the post content from that point).
+ * Escaping with backslashes is ignored by the Rest.li parser, so we clean/sanitize
+ * them directly by replacing them with safe alternatives (e.g. spaces/dashes/quotes).
  */
-function escapeCommentary(text) {
+function sanitizeCommentary(text) {
   if (!text) return '';
-  return text.replace(/[\\()\[\]{}<>@|~_*]/g, (x) => '\\' + x);
+  let sanitized = text
+    .replace(/\(/g, ' - ')
+    .replace(/\)/g, ' - ')
+    .replace(/\[/g, '"')
+    .replace(/\]/g, '"')
+    .replace(/\{/g, ' - ')
+    .replace(/\}/g, ' - ')
+    .replace(/\\/g, '/')
+    .replace(/[^\S\r\n]+/g, ' '); // collapse consecutive spaces, keep newlines
+  return sanitized;
 }
 
 /**
@@ -143,7 +154,7 @@ function escapeCommentary(text) {
 async function publishPost(accessToken, linkedinId, postText, hashtags, images = []) {
   const authorUrn  = `urn:li:person:${linkedinId}`;
   const rawCommentary = hashtags ? `${postText}\n\n${hashtags}` : postText;
-  const commentary = escapeCommentary(rawCommentary);
+  const commentary = sanitizeCommentary(rawCommentary);
 
   const headers = {
     Authorization:               `Bearer ${accessToken}`,
@@ -194,6 +205,7 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
   console.log(`📝 Posting to LinkedIn REST API...`);
   console.log(`   Author: ${authorUrn}`);
   console.log(`   Commentary length: ${commentary.length} chars`);
+  console.log(`   PostBody:`, JSON.stringify(postBody));
   console.log(`   Images: ${images.length}`);
 
   const res = await axios.post('https://api.linkedin.com/rest/posts', postBody, { headers });
