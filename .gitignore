@@ -8,4 +8,5 @@ uploads/
 .vercel/
 prisma/
 prisma.config.ts
+*.sqlite
 firebase-service-account.json
