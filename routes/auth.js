@@ -206,7 +206,7 @@ router.get('/google/callback', async (req, res) => {
             name:         gProfile.name,
             email:        gProfile.email,
             avatar_url:   gProfile.picture,
-            access_token: null,
+            access_token: access_token,
             created_at:   now,
             updated_at:   now,
           })
@@ -226,7 +226,7 @@ router.get('/google/callback', async (req, res) => {
         const id = crypto.randomUUID();
         await run(`INSERT INTO users (id, linkedin_id, name, email, avatar_url, access_token, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, `google_${gProfile.sub}`, gProfile.name, gProfile.email, gProfile.picture, null, now, now]);
+          [id, `google_${gProfile.sub}`, gProfile.name, gProfile.email, gProfile.picture, access_token, now, now]);
         await run(`INSERT INTO user_settings (id, user_id, updated_at) VALUES (?, ?, ?)`, [crypto.randomUUID(), id, now]);
         user = await get('SELECT * FROM users WHERE id = ?', [id]);
       }
