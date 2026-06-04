@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.4.3';
+const PAGE_VERSION = '1.4.4';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -493,7 +493,7 @@ function renderPostList(posts) {
 
 function filterPosts(filter, btn) {
   currentFilter = filter;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mode-btn[data-filter]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadPosts(filter);
 }
@@ -979,11 +979,9 @@ function resetStudio() {
   const lkImg = document.getElementById('lkImagePreview');
   if (lkImg) { lkImg.innerHTML = ''; lkImg.className = 'lk-media'; }
 
-  // Reset file input elements so same file can be re-selected
-  ['singleFileInput','eventFileInput'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  // Reset file input element so same file can be re-selected
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.value = '';
 }
 
 // ---- Auto-Schedule (uses user's saved settings, no user input needed) ----

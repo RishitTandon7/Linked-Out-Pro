@@ -370,6 +370,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       await sb.from('post_images').delete().eq('post_id', req.params.id);
       await sb.from('posts').delete().eq('id', req.params.id).eq('user_id', req.user.id);
     } else {
+      await run('DELETE FROM post_images WHERE post_id = ?', [req.params.id]);
       await run('DELETE FROM posts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
     }
     res.json({ success: true });
