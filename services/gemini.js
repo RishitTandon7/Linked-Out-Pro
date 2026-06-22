@@ -129,14 +129,17 @@ const toneMap = {
  * Analyze images and generate a LinkedIn post
  * @param {Array<{path, mimetype}>} imageFiles
  */
-async function generateLinkedInPost(imageFiles, context, intent, tone) {
+async function generateLinkedInPost(imageFiles, context, intent, tone, currentDate) {
+  const today = currentDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const prompt = `You are an expert LinkedIn content creator and personal branding strategist.
+
+Today's date is: ${today}.
 
 ${
   imageFiles.length === 0
     ? 'Generate a post based solely on the context provided below.'
     : imageFiles.length === 1
-      ? 'Analyze the provided image carefully and use it as the basis for the post.'
+      ? 'Analyze the provided image carefully (such as a certificate, document, award, or photo) and use it as the basis for the post.'
       : `Analyze all ${imageFiles.length} provided event/related photos carefully as a set.`
 }${context ? `\n\nAdditional context from the user: "${context}"` : ''}
 
@@ -152,6 +155,23 @@ Create a complete, full-length LinkedIn post with these specifications:
 - End with a clear call-to-action or reflection question to drive engagement
 - NEVER use: "I am happy to share", "Excited to announce", "Thrilled to", or similar clichés
 - Do NOT include hashtags inside the post body itself
+
+DATES AND Retrospectives / Throwbacks:
+1. Look closely for any dates, issue dates, graduation/completion years, or timeframe indicators printed on the uploaded image(s) (especially certificates, credentials, or diplomas).
+2. Compare any detected dates (or timeframe/dates mentioned in the user's text context) to Today's date (${today}).
+3. If the achievement, certificate, or milestone date is in the past (e.g., from several months or years ago), structure the post as a retrospective reflection focusing on growth and what stuck.
+4. For Certificates & Credentials, use hooks like:
+   - "Back in [Year], this changed how I think about [Topic]..."
+   - "[Time period] later, here's what actually stuck..."
+   - "[Year] taught me something I keep coming back to..."
+5. For Hackathons, Competitions & Build Events, use hooks like:
+   - "Back in [Year], building [Project] in 48 hours taught me..." (Only mention the project/product if the user explicitly provided it or if it is clearly visible in the image. Otherwise, focus on the building experience/hackathon theme itself).
+   - "[Time period] after building at [Hackathon], here's what actually stuck about shipping fast..."
+   - "The [Hackathon] in [Year] is where I first learned that [specific lesson] — and I haven't shipped the same way since."
+6. No Hallucinated Projects: Do not mention or hallucinate a specific project name if the user hasn't explicitly mentioned it in their context/input and it is not clearly readable/visible on the image.
+7. Fallback Behavior: If no date can be reliably detected from the image or context, default to a standard post without retrospective/throwback framing.
+8. Acknowledge that the credential/achievement was obtained in the past, sharing what you've learned since then, how you've applied the knowledge, or the long-term impact of that milestone. Avoid exact anniversary wording like "today".
+9. If the certificate is brand new (e.g. dated this month/recently) or contains no date indicating it is old, frame it as a recent achievement.
 
 OUTPUT — use EXACTLY this format, nothing else:
 

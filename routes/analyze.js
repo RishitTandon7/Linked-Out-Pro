@@ -44,7 +44,10 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
 
   try {
     const imageFiles = hasImages ? req.files.map(f => ({ path: f.path, mimetype: f.mimetype })) : [];
-    const result     = await generateLinkedInPost(imageFiles, context, intent, tone);
+    
+    // Format current date for Gemini context (e.g. "Monday, June 22, 2026")
+    const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const result      = await generateLinkedInPost(imageFiles, context, intent, tone, currentDate);
 
     // Save as draft post in DB
     const postId  = crypto.randomUUID();
