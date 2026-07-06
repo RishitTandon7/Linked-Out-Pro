@@ -346,8 +346,20 @@ async function loadAnalytics() {
       ? new Date(posts[0].published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : '—';
 
-    document.getElementById('metric-impressions').textContent = totalLikes.toLocaleString();
-    document.getElementById('metric-followers').textContent   = totalComments.toLocaleString();
+    const hasApiError = posts.some(p => p._error);
+
+    if (hasApiError) {
+      document.getElementById('metric-impressions').innerHTML = `<span style="font-size:0.9rem;color:var(--text-muted)">🔒 Restricted</span>`;
+      document.getElementById('metric-followers').innerHTML   = `<span style="font-size:0.9rem;color:var(--text-muted)">🔒 Restricted</span>`;
+      
+      const trends = document.querySelectorAll('.stat-card .stat-trend');
+      if (trends[0]) trends[0].innerHTML = `<span style="color:var(--error)">LinkedIn API restricts personal analytics</span>`;
+      if (trends[1]) trends[1].innerHTML = `<span style="color:var(--error)">LinkedIn API restricts personal analytics</span>`;
+    } else {
+      document.getElementById('metric-impressions').textContent = totalLikes.toLocaleString();
+      document.getElementById('metric-followers').textContent   = totalComments.toLocaleString();
+    }
+    
     document.getElementById('metric-viewers').textContent     = totalPosts.toLocaleString();
     document.getElementById('metric-searches').textContent    = lastPost;
 
@@ -369,6 +381,9 @@ async function loadAnalytics() {
       const date = p.published_at ? new Date(p.published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const preview = (p.post_text || '').slice(0, 120) + (p.post_text?.length > 120 ? '…' : '');
       const isNative = p.native ? `<span class="q-tag" style="font-size:0.6rem">LinkedIn native</span>` : '';
+      
+      const likesDisplay = p._error ? '🔒' : p.likes.toLocaleString();
+      const commentsDisplay = p._error ? '🔒' : p.comments.toLocaleString();
 
       list.innerHTML += `
         <div class="kpi-row">
@@ -379,11 +394,11 @@ async function loadAnalytics() {
           <div class="kpi-metrics">
             <div class="kpi-metric" title="Likes">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-              <span>${p.likes.toLocaleString()}</span>
+              <span>${likesDisplay}</span>
             </div>
             <div class="kpi-metric" title="Comments">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>${p.comments.toLocaleString()}</span>
+              <span>${commentsDisplay}</span>
             </div>
           </div>
         </div>`;

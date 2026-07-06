@@ -25,7 +25,7 @@ const liHeaders = (token) => ({
 async function getSocialActions(token, postUrn) {
   try {
     const encoded = encodeURIComponent(postUrn);
-    const res = await axios.get(`${LI_V2_BASE}/socialActions/${encoded}`, {
+    const res = await axios.get(`${LI_REST_BASE}/socialActions/${encoded}`, {
       headers: liHeaders(token),
       timeout: 8000
     });
@@ -35,7 +35,9 @@ async function getSocialActions(token, postUrn) {
     };
   } catch (e) {
     // If the post is too old or scope missing, silently return 0
-    return { likes: 0, comments: 0 };
+    const errMsg = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+    console.warn(`SocialActions error for ${postUrn}:`, errMsg);
+    return { likes: 0, comments: 0, _error: errMsg };
   }
 }
 
@@ -119,7 +121,8 @@ router.get('/live', requireAuth, async (req, res) => {
         urn:          post.linkedin_post_id,
         likes:        actions.likes,
         comments:     actions.comments,
-        engagement:   actions.likes + actions.comments
+        engagement:   actions.likes + actions.comments,
+        _error:       actions._error
       };
     }));
 
