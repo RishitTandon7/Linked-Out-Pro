@@ -276,25 +276,25 @@ The user has attached their Resume/CV/Experience document below. Their current L
 
 Your task is to analyze their experience and generate:
 1. 3 highly optimized LinkedIn Headlines (focus on value proposition and authority).
-2. A complete 7-day content calendar (post drafts) based entirely on their real work experience.
+2. 3-4 specific Profile Enhancements (e.g. what to add to their About section, Experience, or Skills to stand out).
+3. 3-5 Content Ideas (draft posts) based entirely on their real work experience.
 
-Each post should have a scroll-stopping hook, short punchy paragraphs, 2-4 emojis, and a clear takeaway or call-to-action. Do not use cliché phrases.
+Each post draft should have a scroll-stopping hook, short punchy paragraphs, 2-4 emojis, and a clear takeaway or call-to-action. Do not use cliché phrases.
 
 Return ONLY a valid JSON object strictly matching this schema (do not include markdown code block formatting):
 {
   "headlines": ["Headline 1", "Headline 2", "Headline 3"],
-  "plan": [
+  "profileTips": [
     {
-      "day": 1,
+      "section": "About / Experience / Skills",
+      "advice": "Specific advice on what to add or change"
+    }
+  ],
+  "contentIdeas": [
+    {
       "topic": "Topic summary",
       "draft": "Full LinkedIn post text (3-5 paragraphs, formatted, with hook)"
-    },
-    { "day": 2, "topic": "...", "draft": "..." },
-    { "day": 3, "topic": "...", "draft": "..." },
-    { "day": 4, "topic": "...", "draft": "..." },
-    { "day": 5, "topic": "...", "draft": "..." },
-    { "day": 6, "topic": "...", "draft": "..." },
-    { "day": 7, "topic": "...", "draft": "..." }
+    }
   ]
 }`;
 

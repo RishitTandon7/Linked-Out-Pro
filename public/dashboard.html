@@ -211,7 +211,7 @@
       <div style="max-width: 900px; margin: 0 auto; padding-bottom: 60px;">
         <div class="forge-header">
           <h1 class="forge-title">AI Strategy Planner</h1>
-          <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:6px;">Upload your Resume/CV to instantly generate a 7-day content plan.</p>
+          <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:6px;">Upload your Resume/CV to instantly generate profile enhancements and content ideas.</p>
         </div>
 
         <!-- Uploader -->
@@ -222,10 +222,22 @@
           <input type="file" id="resumeFileInput" accept=".pdf,.txt" style="display:none" />
         </div>
 
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+        <div style="margin-bottom:24px;">
           <button class="action-btn-primary" id="btnGenerateStrategy" onclick="generateStrategy()" style="width:100%;justify-content:center;" disabled>
-            ⚡ Generate 7-Day Strategy
+            ⚡ Generate Strategy
           </button>
+          
+          <!-- PROGRESSIVE FLUX LOADER -->
+          <div id="fluxLoaderContainer" style="display: none; margin-top: 24px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto; flex-direction: column; align-items: center; gap: 32px;">
+            <div class="flux-label-container" id="fluxLabelContainer">
+              <span id="fluxLabelText" class="flux-label-text">starting up</span>
+            </div>
+            <div class="flux-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div class="flux-bar-fill" id="fluxBarFill" style="width: 0%;">
+                <span class="flux-bar-sheen"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Results Container -->
@@ -236,9 +248,16 @@
           <div id="strategyHeadlines" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
             <!-- Injected by JS -->
           </div>
+          
+          <div class="forge-header mt-6">
+            <h2 class="forge-title sm">Profile Enhancements</h2>
+          </div>
+          <div id="strategyProfileTips" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
+            <!-- Injected by JS -->
+          </div>
 
           <div class="forge-header mt-6">
-            <h2 class="forge-title sm">7-Day Content Calendar</h2>
+            <h2 class="forge-title sm">Content Ideas</h2>
           </div>
           <div id="strategyPlan" style="display:flex;flex-direction:column;gap:16px;">
             <!-- Injected by JS -->

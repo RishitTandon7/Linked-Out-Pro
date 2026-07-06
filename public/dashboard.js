@@ -332,14 +332,90 @@ function handleResumeFile(file, labelEl) {
   if (btn) btn.disabled = false;
 }
 
+// Progressive Flux Loader implementation
+function startFluxLoader(durationSecs) {
+  const container = document.getElementById('fluxLoaderContainer');
+  const btn = document.getElementById('btnGenerateStrategy');
+  const fill = document.getElementById('fluxBarFill');
+  const labelText = document.getElementById('fluxLabelText');
+  
+  if (!container || !fill || !labelText) return null;
+  
+  btn.style.display = 'none';
+  container.style.display = 'flex';
+  
+  const phases = [
+    { at: 0, label: "uploading & parsing" },
+    { at: 25, label: "analyzing experience" },
+    { at: 55, label: "generating profile tips" },
+    { at: 80, label: "brainstorming content" },
+    { at: 100, label: "complete" }
+  ];
+  
+  let start = null;
+  let rafId = null;
+  const totalMs = durationSecs * 1000;
+  let currentLabel = "";
+  let isDone = false;
+  
+  function setLabel(newLabel) {
+    if (currentLabel === newLabel) return;
+    currentLabel = newLabel;
+    
+    // 3D swap animation
+    labelText.classList.remove('new');
+    labelText.classList.add('changing');
+    
+    setTimeout(() => {
+      labelText.textContent = newLabel;
+      labelText.classList.remove('changing');
+      labelText.classList.add('new');
+    }, 450);
+  }
+
+  function tick(ts) {
+    if (isDone) return;
+    if (!start) start = ts;
+    const pct = Math.min(100, ((ts - start) / totalMs) * 100);
+    fill.style.width = `${pct}%`;
+    
+    // Pick phase
+    let activePhase = phases[0].label;
+    for (const p of phases) {
+      if (pct >= p.at) activePhase = p.label;
+    }
+    setLabel(activePhase);
+    
+    if (pct < 100) {
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+  
+  rafId = requestAnimationFrame(tick);
+  
+  // Return a finish function to fast-forward to 100% when API returns early
+  return () => {
+    isDone = true;
+    cancelAnimationFrame(rafId);
+    fill.style.width = `100%`;
+    setLabel("complete");
+    setTimeout(() => {
+      container.style.display = 'none';
+      btn.style.display = 'flex';
+    }, 1000);
+  };
+}
+
 async function generateStrategy() {
   if (!selectedResumeFile) return;
   
   const btnGenerate = document.getElementById('btnGenerateStrategy');
   btnGenerate.disabled = true;
-  btnGenerate.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="16"></circle></svg> Analyzing Resume & Generating...`;
   
   document.getElementById('strategyResults').style.display = 'none';
+  
+  // Start the flux loader with an estimated 15 second duration
+  const finishLoader = startFluxLoader(15);
 
   const formData = new FormData();
   formData.append('resume', selectedResumeFile);
@@ -354,12 +430,18 @@ async function generateStrategy() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to generate');
     
-    renderStrategy(data);
+    if (finishLoader) finishLoader();
+    
+    // Slight delay to let the "complete" animation show before rendering
+    setTimeout(() => {
+      renderStrategy(data);
+    }, 1000);
+    
   } catch (e) {
     showToast(e.message, 'error');
+    if (finishLoader) finishLoader();
   } finally {
     btnGenerate.disabled = false;
-    btnGenerate.innerHTML = `⚡ Generate 7-Day Strategy`;
   }
 }
 
@@ -373,25 +455,34 @@ function renderStrategy(data) {
   `).join('');
   document.getElementById('strategyHeadlines').innerHTML = headlinesHtml;
 
-  const planHtml = (data.plan || []).map((p, i) => {
+  const profileHtml = (data.profileTips || []).map(tip => `
+    <div style="padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-bottom:8px;text-transform:uppercase;">${escapeHtml(tip.section)}</div>
+      <div style="font-size:0.9rem;line-height:1.5;color:var(--text-secondary)">${escapeHtml(tip.advice)}</div>
+    </div>
+  `).join('');
+  const tipsContainer = document.getElementById('strategyProfileTips');
+  if (tipsContainer) tipsContainer.innerHTML = profileHtml;
+
+  const planHtml = (data.contentIdeas || []).map((idea, i) => {
     const postDate = new Date();
-    postDate.setDate(postDate.getDate() + (p.day || (i+1)));
+    postDate.setDate(postDate.getDate() + 1); // just default to tomorrow for ideas
     postDate.setHours(9, 0, 0, 0);
 
-    const safeText = encodeURIComponent(p.draft || '');
+    const safeText = encodeURIComponent(idea.draft || '');
     const safeIso = postDate.toISOString().slice(0, 16);
     
     return `
     <div style="padding:20px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
         <div>
-          <div style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-bottom:4px;">DAY ${p.day || i+1} • ${escapeHtml(p.topic || 'Post')}</div>
+          <div style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-bottom:4px;">IDEA ${i+1} • ${escapeHtml(idea.topic || 'Post')}</div>
         </div>
         <button class="action-btn-secondary" style="padding:6px 12px;font-size:0.75rem;" onclick="addStrategyToQueue('${safeText}', '${safeIso}')">
           ➕ Add to Queue
         </button>
       </div>
-      <div style="white-space:pre-wrap;font-size:0.9rem;line-height:1.6;color:var(--text-secondary)">${escapeHtml(p.draft || '')}</div>
+      <div style="white-space:pre-wrap;font-size:0.9rem;line-height:1.6;color:var(--text-secondary)">${escapeHtml(idea.draft || '')}</div>
     </div>
   `}).join('');
   document.getElementById('strategyPlan').innerHTML = planHtml;

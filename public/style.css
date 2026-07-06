@@ -687,3 +687,92 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 }
 .ctrl-val { font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); min-width: 32px; }
 
+/* ==========================================================================
+   PROGRESSIVE FLUX LOADER
+   ========================================================================== */
+.flux-loader-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  perspective: 1000px;
+}
+
+.flux-label-container {
+  position: relative;
+  height: 4rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.flux-label-text {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--text-muted);
+  text-align: center;
+  transform-style: preserve-3d;
+  animation: fluxLabelEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  position: absolute;
+}
+
+.flux-label-text.changing {
+  animation: fluxLabelExit 0.45s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes fluxLabelEnter {
+  0% { opacity: 0; transform: translateZ(-380px) scale(0.65); filter: blur(14px); }
+  25% { opacity: 1; transform: translateZ(60px) scale(1.08); filter: blur(0px); }
+  50% { opacity: 1; transform: translateZ(-8px) scale(0.985); filter: blur(0px); }
+  100% { opacity: 1; transform: translateZ(0) scale(1); filter: blur(0px); }
+}
+
+@keyframes fluxLabelExit {
+  0% { opacity: 1; transform: translateZ(0) scale(1); filter: blur(0px); }
+  100% { opacity: 0; transform: translateZ(220px) scale(1.35); filter: blur(10px); }
+}
+
+.flux-bar-track {
+  position: relative;
+  height: 1.25rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: rgba(255,255,255,0.05);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.45), inset 0 -1px 2px rgba(255,255,255,0.05);
+}
+
+.flux-bar-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #1d6ffb 0%, color-mix(in oklab, #1d6ffb, #74e1ff) 35%, #74e1ff 55%, color-mix(in oklab, #1d6ffb, #74e1ff) 78%, #1d6ffb 100%);
+  box-shadow: 0 0 18px color-mix(in oklab, #1d6ffb 55%, transparent), 
+              0 0 32px color-mix(in oklab, #74e1ff 40%, transparent), 
+              inset 0 1.5px 0 rgba(255, 255, 255, 0.5), 
+              inset 0 -2px 3px rgba(0, 40, 120, 0.35);
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flux-bar-sheen {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+  mix-blend-mode: screen;
+  animation: fluxSheenSweep 1.6s linear infinite;
+}
+
+@keyframes fluxSheenSweep {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(210%); }
+}
