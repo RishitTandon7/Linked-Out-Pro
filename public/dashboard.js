@@ -264,6 +264,8 @@ async function loadUser() {
     if (res.user.email === 'rishit.tandon.7@gmail.com') {
       const bossBtn = document.getElementById('bossNavBtn');
       if (bossBtn) bossBtn.style.display = 'flex';
+      const mBossBtn = document.getElementById('mobileBossNavBtn');
+      if (mBossBtn) mBossBtn.style.display = 'flex';
     }
     
     const uName = document.getElementById('userName');
@@ -350,15 +352,7 @@ async function loadAnalytics() {
     document.getElementById('metric-searches').textContent    = lastPost;
 
     // Update labels to match real data
-    const labels = document.querySelectorAll('.stat-card .stat-label');
     const trends = document.querySelectorAll('.stat-card .stat-trend');
-    if (labels[0]) labels[0].textContent = 'Total Likes';
-    if (labels[1]) labels[1].textContent = 'Total Comments';
-    if (labels[2]) labels[2].textContent = 'Posts Published';
-    if (labels[3]) labels[3].textContent = 'Latest Post';
-    if (trends[0]) trends[0].textContent = 'real-time from LinkedIn';
-    if (trends[1]) trends[1].textContent = 'real-time from LinkedIn';
-    if (trends[2]) trends[2].textContent = 'via this app + LinkedIn';
     if (trends[3]) trends[3].textContent = data.meta?.fetchedAt ? 'Synced ' + new Date(data.meta.fetchedAt).toLocaleTimeString() : '';
 
     // Render per-post breakdown
