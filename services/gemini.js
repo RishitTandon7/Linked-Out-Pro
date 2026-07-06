@@ -4,15 +4,13 @@ const axios = require('axios');
 const fs    = require('fs');
 
 // ---- Key Pool ----
-const API_KEYS = [
-  process.env.GEMINI_API_KEY_1,
-  process.env.GEMINI_API_KEY_2,
-  process.env.GEMINI_API_KEY_3,
-  process.env.GEMINI_API_KEY
-].filter(Boolean);
+const API_KEYS = Object.keys(process.env)
+  .filter(key => key.startsWith('GEMINI_API_KEY'))
+  .map(key => process.env[key])
+  .filter(Boolean);
 
 if (API_KEYS.length === 0) {
-  console.warn('⚠️  No Gemini API keys configured. Set GEMINI_API_KEY_1/2/3 in .env');
+  console.warn('⚠️  No Gemini API keys configured. Set GEMINI_API_KEY_1/2/3 etc. in .env');
 }
 
 // ---- Model Pool — all models available in this account ----
