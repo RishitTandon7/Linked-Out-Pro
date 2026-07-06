@@ -422,7 +422,7 @@
           throw new Error("CLEARANCE_DENIED");
         }
 
-        document.getElementById('navUser').textContent = \`OP: \${user.email}\`;
+        document.getElementById('navUser').textContent = `OP: ${user.email}`;
         document.getElementById('dashboard').style.display = 'block';
         loadAll();
 
@@ -492,17 +492,17 @@
         { label: 'T-24H OUTPUTS',     value: data?.captionsToday, sub: 'Generations Today' },
       ];
 
-      grid.innerHTML = cards.map((card) => \`
+      grid.innerHTML = cards.map((card) => `
         <div class="hw-module">
           <div class="hw-header">
-            <span class="engraved-text" style="font-size: 0.7rem;">\${card.label}</span>
+            <span class="engraved-text" style="font-size: 0.7rem;">${card.label}</span>
           </div>
           <div class="oled-screen">
-            <div class="lcd-data">\${data === null ? '---' : fmt(card.value)}</div>
-            <div class="lcd-sub">\${card.sub}</div>
+            <div class="lcd-data">${data === null ? '---' : fmt(card.value)}</div>
+            <div class="lcd-sub">${card.sub}</div>
           </div>
         </div>
-      \`).join('');
+      `).join('');
     }
 
     // ======================== TELEMETRY CHART ========================
@@ -574,7 +574,7 @@
               padding: 16,
               cornerRadius: 0,
               displayColors: false,
-              callbacks: { label: (ctx) => \`VAL: \${ctx.parsed.y}\` }
+              callbacks: { label: (ctx) => `VAL: ${ctx.parsed.y}` }
             }
           },
           scales: {
@@ -596,21 +596,21 @@
       if (reset) {
         usersOffset = 0;
         allUsersLoaded = false;
-        document.getElementById('usersTableBody').innerHTML = \`
+        document.getElementById('usersTableBody').innerHTML = `
           <div style="padding: 48px; text-align: center; color: var(--led-cyan-dim); font-family: var(--font-lcd);">
             QUERYING SECTORS...
-          </div>\`;
+          </div>`;
       }
       if (allUsersLoaded) return;
 
       try {
-        const url = \`/api/boss/users?limit=\${USERS_LIMIT}&offset=\${usersOffset}\`;
+        const url = `/api/boss/users?limit=${USERS_LIMIT}&offset=${usersOffset}`;
         const res  = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error("API_FAIL");
         const { users, total } = await res.json();
 
         totalUsersCount = total;
-        document.getElementById('tableCount').textContent = \`VOL: \${total}\`;
+        document.getElementById('tableCount').textContent = `VOL: ${total}`;
 
         if (reset) renderUsersTable(users, total);
         else appendUserRows(users);
@@ -624,11 +624,11 @@
       } catch (e) {
          setTimeout(() => {
            totalUsersCount = 14092;
-           document.getElementById('tableCount').textContent = \`VOL: 14092\`;
+           document.getElementById('tableCount').textContent = `VOL: 14092`;
            
            const mockUsers = Array.from({length: 10}, (_, i) => ({
-             name: \`OPERATIVE_\${usersOffset + i + 1}\`,
-             email: \`node.\${usersOffset + i + 1}@sys.local\`,
+             name: `OPERATIVE_${usersOffset + i + 1}`,
+             email: `node.${usersOffset + i + 1}@sys.local`,
              created_at: Date.now() - (Math.random() * 86400000 * 90),
              updated_at: Date.now() - (Math.random() * 86400000 * 3),
              avatar_url: ''
@@ -654,7 +654,7 @@
         return;
       }
 
-      body.innerHTML = \`
+      body.innerHTML = `
         <table>
           <thead>
             <tr>
@@ -664,11 +664,11 @@
             </tr>
           </thead>
           <tbody id="usersTbody">
-            \${users.map(u => userRow(u)).join('')}
+            ${users.map(u => userRow(u)).join('')}
           </tbody>
         </table>
-        \${usersOffset < total ? \`<button class="btn-sys" id="loadMoreBtn" onclick="loadMoreUsers()">FETCH NEXT SECTOR</button>\` : ''}
-      \`;
+        ${usersOffset < total ? `<button class="btn-sys" id="loadMoreBtn" onclick="loadMoreUsers()">FETCH NEXT SECTOR</button>` : ''}
+      `;
     }
 
     function appendUserRows(users) {
@@ -687,23 +687,23 @@
       const initials = (u.name || '??').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
       const signedUp = fmtDate(u.created_at);
       const lastActive = fmtDate(u.updated_at);
-      return \`
+      return `
         <tr>
           <td>
             <div class="user-block">
               <div class="lens-avatar">
-                \${u.avatar_url ? \`<img src="\${u.avatar_url}" onerror="this.parentElement.textContent='\${initials}'" />\` : initials}
+                ${u.avatar_url ? `<img src="${u.avatar_url}" onerror="this.parentElement.textContent='${initials}'" />` : initials}
               </div>
               <div>
-                <div class="lcd-text-bright">\${escHtml(u.name || 'UNKNOWN_ID')}</div>
-                <div class="lcd-text-dim">\${escHtml(u.email || 'NO_COMMS')}</div>
+                <div class="lcd-text-bright">${escHtml(u.name || 'UNKNOWN_ID')}</div>
+                <div class="lcd-text-dim">${escHtml(u.email || 'NO_COMMS')}</div>
               </div>
             </div>
           </td>
-          <td>\${signedUp}</td>
-          <td>\${lastActive}</td>
+          <td>${signedUp}</td>
+          <td>${lastActive}</td>
         </tr>
-      \`;
+      `;
     }
 
     // ======================== UTILITIES ========================
@@ -727,7 +727,7 @@
 
     function showError(msg) {
       const t = document.getElementById('errorToast');
-      t.textContent = \`ERR: \${msg}\`; 
+      t.textContent = `ERR: ${msg}`; 
       t.style.display = 'block';
       setTimeout(() => { t.style.display = 'none'; }, 4000);
     }
