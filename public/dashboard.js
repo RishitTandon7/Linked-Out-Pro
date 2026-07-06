@@ -430,6 +430,9 @@ async function generateStrategy() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to generate');
     
+    // Save to local storage for persistence across reloads
+    localStorage.setItem('lo_strategy_data', JSON.stringify(data));
+    
     if (finishLoader) finishLoader();
     
     // Slight delay to let the "complete" animation show before rendering
@@ -1496,4 +1499,15 @@ function escapeHtml(str) {
 // Initialize AI Strategy UI
 document.addEventListener('DOMContentLoaded', () => {
   initResumeDropZone();
+  
+  // Load saved strategy if it exists
+  const savedStrategy = localStorage.getItem('lo_strategy_data');
+  if (savedStrategy) {
+    try {
+      renderStrategy(JSON.parse(savedStrategy));
+    } catch(e) {
+      console.warn("Failed to parse saved strategy", e);
+      localStorage.removeItem('lo_strategy_data');
+    }
+  }
 });
