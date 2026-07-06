@@ -1,344 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In | LinkedIn</title>
-  <!-- Google Font: Inter -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — LinkedOut Pro</title>
+  <meta name="description" content="Sign in to LinkedOut Pro with your LinkedIn account." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <style>
-    /* CSS reset & styling */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
-      background-color: #ffffff;
-      color: rgba(0, 0, 0, 0.9);
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      align-items: center;
-      justify-content: flex-start;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:            #05070A;
+      --surface:       #0D0F14;
+      --border:        rgba(255,255,255,0.08);
+      --text-primary:  #F0F0F5;
+      --text-muted:    rgba(240,240,245,0.4);
+      --li-blue:       #0077B5;
+      --li-blue-hover: #005f94;
+      --font:          'Inter', sans-serif;
+      --ease:          cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Header styling with the LinkedIn logo */
-    header {
-      width: 100%;
-      max-width: 1128px;
-      padding: 24px 24px 0 24px;
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      margin-bottom: 24px;
+    html, body {
+      height: 100%; background: var(--bg);
+      color: var(--text-primary); font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
     }
 
-    .logo-container {
-      display: flex;
-      align-items: center;
-      font-size: 26px;
-      font-weight: 700;
-      color: #0a66c2;
-      text-decoration: none;
-      user-select: none;
-    }
-
-    .logo-in {
-      background-color: #0a66c2;
-      color: white;
-      padding: 0 4px;
-      border-radius: 3px;
-      margin-left: 2px;
-      font-size: 23px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-    }
-
-    /* Main Container */
-    main {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      width: 100%;
-      padding: 0 16px 40px 16px;
-    }
-
-    /* Auth Card styling */
-    .auth-card {
-      width: 100%;
-      max-width: 400px;
-      background-color: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02);
-      padding: 24px 32px 32px 32px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .auth-title {
-      font-size: 32px;
-      font-weight: 600;
-      color: rgba(0, 0, 0, 0.9);
-      margin-bottom: 4px;
-    }
-
-
-    /* Form Fields */
-    .form-group {
-      position: relative;
-      width: 100%;
-      margin-bottom: 4px;
-    }
-
-    .form-input {
-      width: 100%;
-      height: 52px;
-      padding: 20px 12px 6px 12px;
-      font-size: 16px;
-      color: rgba(0, 0, 0, 0.9);
-      border: 1px solid rgba(0, 0, 0, 0.6);
-      border-radius: 4px;
-      outline: none;
-      background-color: transparent;
-      transition: border-color 0.2s ease;
-    }
-
-    .form-input:focus {
-      border-color: #0a66c2;
-      border-width: 2px;
-      padding: 19px 11px 5px 11px; /* Adjust padding for 2px border */
-    }
-
-    .form-label {
-      position: absolute;
-      left: 12px;
-      top: 14px;
-      font-size: 16px;
-      color: rgba(0, 0, 0, 0.6);
+    /* Glow background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: radial-gradient(ellipse at 50% 40%, rgba(0,119,181,0.08) 0%, transparent 65%);
       pointer-events: none;
-      transition: transform 0.2s ease, font-size 0.2s ease, color 0.2s ease;
-      transform-origin: left top;
     }
 
-    /* Floating label rules */
-    .form-input:focus ~ .form-label,
-    .form-input:not(:placeholder-shown) ~ .form-label {
-      transform: translateY(-8px) scale(0.75);
-      color: rgba(0, 0, 0, 0.6);
-    }
-
-    .form-input:focus ~ .form-label {
-      color: #0a66c2;
-    }
-
-    /* Show/Hide password toggle */
-    .toggle-password {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: #0a66c2;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      outline: none;
-    }
-
-    .toggle-password:hover {
-      background-color: rgba(10, 102, 194, 0.15);
-      text-decoration: underline;
-    }
-
-    /* Forgot Password Link */
-    .forgot-password-link {
-      font-size: 16px;
-      font-weight: 600;
-      color: #0a66c2;
-      text-decoration: none;
-      align-self: flex-start;
-      margin-top: 4px;
-    }
-
-    .forgot-password-link:hover {
-      text-decoration: underline;
-    }
-
-    /* Button Row */
-    .button-row {
-      display: flex;
-      gap: 12px;
-      width: 100%;
-      margin-top: 8px;
-    }
-
-    .btn {
-      flex: 1;
-      height: 48px;
+    /* Card */
+    .card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 400px;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 24px;
-      font-size: 16px;
-      font-weight: 600;
+      padding: 40px 36px;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 28px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+      animation: slideUp 0.5s var(--ease) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Logo */
+    .brand {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .brand-logo {
+      width: 52px; height: 52px; border-radius: 14px;
+      box-shadow: 0 0 20px rgba(0,119,181,0.35);
+    }
+    .brand-name {
+      font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+    .brand-pro { color: var(--li-blue); }
+
+    /* Text */
+    .card-title {
+      font-size: 1.4rem; font-weight: 900; letter-spacing: -0.03em;
+      color: var(--text-primary); text-align: center; line-height: 1.2;
+    }
+    .card-sub {
+      font-size: 0.85rem; color: var(--text-muted); text-align: center;
+      line-height: 1.6; margin-top: -16px;
+    }
+
+    /* LinkedIn Sign In Button */
+    .btn-linkedin {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      width: 100%; padding: 16px 24px;
+      background: var(--li-blue); color: #fff;
+      border: none; border-radius: 14px;
+      font-family: var(--font); font-size: 0.9375rem; font-weight: 700;
+      text-decoration: none; letter-spacing: 0.01em;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      transition: all 0.2s var(--ease);
+      box-shadow: 0 8px 32px rgba(0,119,181,0.35);
+    }
+    .btn-linkedin:hover {
+      background: var(--li-blue-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,119,181,0.45);
+    }
+    .btn-linkedin:active { transform: translateY(0); }
+
+    /* LinkedIn logo SVG */
+    .li-icon {
+      width: 20px; height: 20px; flex-shrink: 0;
     }
 
-    .btn-cancel {
-      border: 1px solid #0a66c2;
-      background-color: #ffffff;
-      color: #0a66c2;
+    /* Divider */
+    .divider {
+      width: 100%; height: 1px;
+      background: var(--border);
     }
 
-    .btn-cancel:hover {
-      background-color: rgba(10, 102, 194, 0.08);
-      border-color: #004182;
-      color: #004182;
+    /* Trust badges */
+    .trust-list {
+      display: flex; flex-direction: column; gap: 10px; width: 100%;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.78rem; color: var(--text-muted);
+    }
+    .trust-icon {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
     }
 
-    .btn-submit {
-      border: none;
-      background-color: #0a66c2;
-      color: #ffffff;
+    /* Footer */
+    .card-footer {
+      font-size: 0.72rem; color: var(--text-muted);
+      text-align: center; line-height: 1.6;
     }
+    .card-footer a { color: rgba(240,240,245,0.5); text-decoration: none; }
+    .card-footer a:hover { color: var(--text-primary); }
 
-    .btn-submit:hover {
-      background-color: #004182;
+    /* Back link */
+    .back-link {
+      position: relative; z-index: 1;
+      margin-top: 20px;
+      font-size: 0.78rem; color: var(--text-muted);
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+      transition: color 0.2s;
+      animation: slideUp 0.5s 0.1s var(--ease) both;
     }
+    .back-link:hover { color: var(--text-primary); }
 
-    /* Bottom join layout */
-    .bottom-join-wrap {
-      font-size: 16px;
-      color: rgba(0, 0, 0, 0.9);
-      text-align: center;
-      margin-top: 16px;
+    /* Error banner */
+    .error-banner {
+      width: 100%; max-width: 400px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      color: #f87171; padding: 12px 18px; border-radius: 12px;
+      font-size: 0.8rem; font-weight: 600; text-align: center;
+      position: relative; z-index: 1; margin-bottom: -8px;
+      animation: slideUp 0.4s var(--ease) both;
     }
-
-    .btn-join {
-      color: #0a66c2;
-      font-weight: 600;
-      text-decoration: none;
-    }
-
-    .btn-join:hover {
-      text-decoration: underline;
-    }
-
-    /* Premium Toast message */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      background-color: #1f2937;
-      color: #ffffff;
-      padding: 12px 24px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0;
-      transform: translateY(100%);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      z-index: 1000;
-      pointer-events: none;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <header>
-    <a href="/" class="logo-container">
-      Linked<span class="logo-in">in</span>
-    </a>
-  </header>
+  <!-- Error banner (shown if OAuth fails) -->
+  <div id="errorBanner" class="error-banner hidden"></div>
 
-  <main>
-    <div class="auth-card">
-      <h1 class="auth-title">Sign in</h1>
+  <div class="card">
 
-
-      <form id="loginForm" style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
-        <!-- Email Input -->
-        <div class="form-group">
-          <input type="text" id="emailInput" class="form-input" placeholder=" " required>
-          <label for="emailInput" class="form-label">Email or phone</label>
-        </div>
-
-        <!-- Password Input -->
-        <div class="form-group">
-          <input type="password" id="passwordInput" class="form-input" placeholder=" " required>
-          <label for="passwordInput" class="form-label">Password</label>
-          <button type="button" id="togglePasswordBtn" class="toggle-password">Show</button>
-        </div>
-
-        <a href="/api/auth/linkedin" class="forgot-password-link">Forgot password?</a>
-
-        <div class="button-row">
-          <a href="/" class="btn btn-cancel">Cancel</a>
-          <button type="submit" class="btn btn-submit">Sign in</button>
-        </div>
-      </form>
+    <!-- Brand -->
+    <div class="brand">
+      <img src="/logo.svg" alt="LinkedOut Pro" class="brand-logo" />
+      <span class="brand-name">LinkedOut <span class="brand-pro">Pro</span></span>
     </div>
-  </main>
 
-  <div class="bottom-join-wrap">
-    New to LinkedIn? <a href="/api/auth/linkedin" class="btn-join">Join now</a>
+    <!-- Heading -->
+    <div style="text-align:center;">
+      <h1 class="card-title">Sign in to get started</h1>
+    </div>
+    <p class="card-sub">Connect your LinkedIn account to generate and schedule posts using AI.</p>
+
+    <!-- LinkedIn OAuth Button -->
+    <a href="/api/auth/linkedin" class="btn-linkedin" id="signInBtn">
+      <svg class="li-icon" viewBox="0 0 24 24" fill="white">
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"/>
+        <circle cx="4" cy="4" r="2" fill="white"/>
+      </svg>
+      Continue with LinkedIn
+    </a>
+
+    <div class="divider"></div>
+
+    <!-- Trust signals -->
+    <div class="trust-list">
+      <div class="trust-item">
+        <div class="trust-icon">🔒</div>
+        <span>We never see or store your LinkedIn password</span>
+      </div>
+      <div class="trust-item">
+        <div class="trust-icon">✅</div>
+        <span>Posts are only published when you say so</span>
+      </div>
+      <div class="trust-item">
+        <div class="trust-icon">🚫</div>
+        <span>We never sell your data — ever</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="card-footer">
+      By continuing, you agree to our <a href="/privacy">Privacy Policy</a>.
+    </p>
+
   </div>
 
-  <div id="toast" class="toast"></div>
+  <a href="/" class="back-link">← Back to home</a>
 
   <script>
-    const emailInput = document.getElementById('emailInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
-    const loginForm = document.getElementById('loginForm');
-    const toast = document.getElementById('toast');
-
-    // Toggle Password Visibility
-    togglePasswordBtn.addEventListener('click', () => {
-      if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        togglePasswordBtn.textContent = 'Hide';
-      } else {
-        passwordInput.type = 'password';
-        togglePasswordBtn.textContent = 'Show';
-      }
-    });
-
-    // Handle form submit (redirects to primary secure LinkedIn OAuth)
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      // Since this is a specialized LinkedIn Auth portal, we trigger the secure LinkedIn OAuth flow
-      window.location.href = '/api/auth/linkedin';
-    });
-
-
-
-    function showToast(message) {
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
+    // Show error from OAuth callback if present
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err) {
+      const banner = document.getElementById('errorBanner');
+      banner.textContent = decodeURIComponent(err);
+      banner.classList.remove('hidden');
     }
+
+    // Redirect if already logged in
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.user) window.location.href = '/dashboard'; });
+
+    // Loading state on click
+    document.getElementById('signInBtn').addEventListener('click', function() {
+      this.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        Connecting to LinkedIn...
+      `;
+      this.style.opacity = '0.8';
+      this.style.pointerEvents = 'none';
+    });
   </script>
 </body>
 </html>
