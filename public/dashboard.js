@@ -301,126 +301,116 @@ async function loadStats() {
   } catch (e) { console.warn('Could not load stats'); }
 }
 
-// ---- Analytics Refresh (live LinkedIn data) ----
-async function openSyncModal() {
-  // No modal: just re-fetch live data
-  await loadAnalytics();
+// ---- AI Strategy (Resume to Content) ----
+let selectedResumeFile = null;
+
+// Initialize dropzone (called after DOM loads or manually)
+function initResumeDropZone() {
+  const dropZone = document.getElementById('resumeDropZone');
+  const fileInput = document.getElementById('resumeFileInput');
+  const fileLabel = document.getElementById('resumeFileLabel');
+  
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; });
+    dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = 'var(--border)');
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--border)';
+      if (e.dataTransfer.files.length) handleResumeFile(e.dataTransfer.files[0], fileLabel);
+    });
+    fileInput.addEventListener('change', e => {
+      if (e.target.files.length) handleResumeFile(e.target.files[0], fileLabel);
+    });
+  }
 }
 
-// ---- Load Analytics (REAL LinkedIn Social Actions data) ----
-async function loadAnalytics() {
-  const list      = document.getElementById('topPostsList');
-  const syncBtn   = document.querySelector('[onclick="openSyncModal()"]');
+function handleResumeFile(file, labelEl) {
+  selectedResumeFile = file;
+  if (labelEl) labelEl.textContent = file.name;
+  const btn = document.getElementById('btnGenerateStrategy');
+  if (btn) btn.disabled = false;
+}
 
-  // Show loading state
-  if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Loading...`; }
-  list.innerHTML = `<div style="display:flex;gap:12px;padding:20px 0">${[1,2,3].map(() => `<div class="kpi-skeleton" style="height:60px;border-radius:12px;flex:1"></div>`).join('')}</div>`;
+async function generateStrategy() {
+  if (!selectedResumeFile) return;
+  
+  const btnGenerate = document.getElementById('btnGenerateStrategy');
+  btnGenerate.disabled = true;
+  btnGenerate.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="16"></circle></svg> Analyzing Resume & Generating...`;
+  
+  document.getElementById('strategyResults').style.display = 'none';
 
-  // Reset stat cards to loading state
-  ['metric-impressions','metric-followers','metric-viewers','metric-searches'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = '…';
-  });
+  const formData = new FormData();
+  formData.append('resume', selectedResumeFile);
 
   try {
-    const data = await api('/api/analytics/live');
-
-    if (data.error === 'no_token') {
-      list.innerHTML = `<div class="empty-state" style="padding:40px 20px">
-        <div class="empty-icon">🔗</div>
-        <div>Connect your LinkedIn account to see real analytics.</div>
-      </div>`;
-      return;
-    }
-
-    const posts  = data.posts  || [];
-    const totals = data.totals || { likes: 0, comments: 0, posts: 0 };
-
-    // ---- Real stat cards from live data ----
-    // LinkedIn personal API doesn't expose impressions/followers/viewers/searches.
-    // We use what IS available: total likes, total comments, total posts published, last post date.
-    const totalPosts    = totals.posts;
-    const totalLikes    = totals.likes;
-    const totalComments = totals.comments;
-    const lastPost = posts.length > 0 && posts[0].published_at
-      ? new Date(posts[0].published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : '—';
-
-    const hasApiError = posts.some(p => p._error);
-
-    if (hasApiError) {
-      document.getElementById('metric-impressions').innerHTML = `<span style="font-size:0.9rem;color:var(--text-muted)">🔒 Restricted</span>`;
-      document.getElementById('metric-followers').innerHTML   = `<span style="font-size:0.9rem;color:var(--text-muted)">🔒 Restricted</span>`;
-      
-      const trends = document.querySelectorAll('.stat-card .stat-trend');
-      if (trends[0]) trends[0].innerHTML = `<span style="color:var(--error)">LinkedIn API restricts personal analytics</span>`;
-      if (trends[1]) trends[1].innerHTML = `<span style="color:var(--error)">LinkedIn API restricts personal analytics</span>`;
-    } else {
-      document.getElementById('metric-impressions').textContent = totalLikes.toLocaleString();
-      document.getElementById('metric-followers').textContent   = totalComments.toLocaleString();
-    }
-    
-    document.getElementById('metric-viewers').textContent     = totalPosts.toLocaleString();
-    document.getElementById('metric-searches').textContent    = lastPost;
-
-    // Update labels to match real data
-    const trends = document.querySelectorAll('.stat-card .stat-trend');
-    if (trends[3]) trends[3].textContent = data.meta?.fetchedAt ? 'Synced ' + new Date(data.meta.fetchedAt).toLocaleTimeString() : '';
-
-    // Render per-post breakdown
-    if (posts.length === 0) {
-      list.innerHTML = `<div class="empty-state" style="padding:40px 20px">
-        <div class="empty-icon">📊</div>
-        <div>Publish your first post to start tracking engagement!</div>
-      </div>`;
-      return;
-    }
-
-    list.innerHTML = '';
-    posts.slice(0, 8).forEach(p => {
-      const date = p.published_at ? new Date(p.published_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      const preview = (p.post_text || '').slice(0, 120) + (p.post_text?.length > 120 ? '…' : '');
-      const isNative = p.native ? `<span class="q-tag" style="font-size:0.6rem">LinkedIn native</span>` : '';
-      
-      const likesDisplay = p._error ? '🔒' : p.likes.toLocaleString();
-      const commentsDisplay = p._error ? '🔒' : p.comments.toLocaleString();
-
-      list.innerHTML += `
-        <div class="kpi-row">
-          <div class="kpi-post-left">
-            <div class="kpi-post-text">${escapeHtml(preview)}</div>
-            <div class="kpi-post-meta">${date ? `<span>${date}</span>` : ''}${isNative}</div>
-          </div>
-          <div class="kpi-metrics">
-            <div class="kpi-metric" title="Likes">
-              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-              <span>${likesDisplay}</span>
-            </div>
-            <div class="kpi-metric" title="Comments">
-              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>${commentsDisplay}</span>
-            </div>
-          </div>
-        </div>`;
+    const res = await fetch('/api/analyze/resume-strategy', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('lo_token')}` },
+      body: formData
     });
-
-    // Note about views
-    const note = document.createElement('div');
-    note.style.cssText = 'font-size:.7rem;color:var(--text-muted);margin-top:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid var(--border)';
-    note.textContent = '⚠ LinkedIn\'s personal API does not expose impressions, followers, or profile views. Showing real-time likes & comments.';
-    list.appendChild(note);
-
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to generate');
+    
+    renderStrategy(data);
   } catch (e) {
-    list.innerHTML = `<div class="empty-state" style="padding:40px 20px;color:var(--text-muted)">
-      Failed to load analytics: ${escapeHtml(e.message)}
-    </div>`;
-    console.error('Analytics load error:', e);
+    showToast(e.message, 'error');
   } finally {
-    if (syncBtn) {
-      syncBtn.disabled = false;
-      syncBtn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Refresh`;
-    }
+    btnGenerate.disabled = false;
+    btnGenerate.innerHTML = `⚡ Generate 7-Day Strategy`;
   }
+}
+
+function renderStrategy(data) {
+  document.getElementById('strategyResults').style.display = 'block';
+  
+  const headlinesHtml = (data.headlines || []).map(h => `
+    <div style="padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-weight:500;">
+      ${escapeHtml(h)}
+    </div>
+  `).join('');
+  document.getElementById('strategyHeadlines').innerHTML = headlinesHtml;
+
+  const planHtml = (data.plan || []).map((p, i) => {
+    const postDate = new Date();
+    postDate.setDate(postDate.getDate() + (p.day || (i+1)));
+    postDate.setHours(9, 0, 0, 0);
+
+    const safeText = encodeURIComponent(p.draft || '');
+    const safeIso = postDate.toISOString().slice(0, 16);
+    
+    return `
+    <div style="padding:20px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-bottom:4px;">DAY ${p.day || i+1} • ${escapeHtml(p.topic || 'Post')}</div>
+        </div>
+        <button class="action-btn-secondary" style="padding:6px 12px;font-size:0.75rem;" onclick="addStrategyToQueue('${safeText}', '${safeIso}')">
+          ➕ Add to Queue
+        </button>
+      </div>
+      <div style="white-space:pre-wrap;font-size:0.9rem;line-height:1.6;color:var(--text-secondary)">${escapeHtml(p.draft || '')}</div>
+    </div>
+  `}).join('');
+  document.getElementById('strategyPlan').innerHTML = planHtml;
+}
+
+function addStrategyToQueue(encodedText, isoDate) {
+  const btn = document.querySelector('[data-tab="create"]');
+  if (btn) switchTab('create', btn);
+  
+  const postInput = document.getElementById('postInput');
+  if (postInput) {
+    postInput.value = decodeURIComponent(encodedText);
+    postInput.dispatchEvent(new Event('input')); // auto-resize if it's bound
+  }
+  
+  const dateInput = document.getElementById('scheduleDate');
+  if (dateInput) dateInput.value = isoDate;
+  
+  showToast('Draft added to Studio! You can now edit and Schedule it.', 'success');
 }
 
 // ---- Load Posts ----
@@ -1411,3 +1401,8 @@ function showToast(message, type = 'info') {
 function escapeHtml(str) {
   return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Initialize AI Strategy UI
+document.addEventListener('DOMContentLoaded', () => {
+  initResumeDropZone();
+});

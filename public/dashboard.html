@@ -42,8 +42,8 @@
         <button class="nav-item active" data-tab="create" onclick="switchTab('create', this)" title="Studio">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
         </button>
-        <button class="nav-item" data-tab="analytics" onclick="switchTab('analytics', this)" title="Analytics">
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        <button class="nav-item" data-tab="strategy" onclick="switchTab('strategy', this)" title="AI Strategy">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
         </button>
         <button class="nav-item" data-tab="queue" onclick="switchTab('queue', this)" title="Queue">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="3" rx="1.5" fill="currentColor"/><rect x="3" y="10.5" width="18" height="3" rx="1.5" fill="currentColor"/><rect x="3" y="17" width="18" height="3" rx="1.5" fill="currentColor"/></svg>
@@ -206,55 +206,42 @@
       </div>
     </div>
 
-    <!-- ===================== TAB: ANALYTICS ===================== -->
-    <div class="tab-content" id="tab-analytics">
-      <div style="max-width: 1200px; margin: 0 auto;">
-
-
+    <!-- ===================== TAB: STRATEGY ===================== -->
+    <div class="tab-content" id="tab-strategy">
+      <div style="max-width: 900px; margin: 0 auto; padding-bottom: 60px;">
         <div class="forge-header">
-          <h1 class="forge-title">Analytics & Tools</h1>
-          <button class="q-btn primary" onclick="openSyncModal()">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
-            Sync LinkedIn Metrics
+          <h1 class="forge-title">AI Strategy Planner</h1>
+          <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:6px;">Upload your Resume/CV to instantly generate a 7-day content plan.</p>
+        </div>
+
+        <!-- Uploader -->
+        <div id="resumeDropZone" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;margin-bottom:24px;background:rgba(255,255,255,0.02);transition:0.2s;">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--primary);margin-bottom:12px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          <div style="font-weight:600;margin-bottom:4px;color:var(--text)" id="resumeFileLabel">Drop your Resume PDF here</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">or click to browse</div>
+          <input type="file" id="resumeFileInput" accept=".pdf,.txt" style="display:none" />
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+          <button class="action-btn-primary" id="btnGenerateStrategy" onclick="generateStrategy()" style="width:100%;justify-content:center;" disabled>
+            ⚡ Generate 7-Day Strategy
           </button>
         </div>
 
-        <div class="analytics-grid4">
-          <div class="stat-card">
-            <div class="stat-value" id="metric-impressions">0</div>
-            <div class="stat-label">Total Likes</div>
-            <div class="stat-trend"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18h16l-8-10z"/></svg> real-time from LinkedIn</div>
+        <!-- Results Container -->
+        <div id="strategyResults" style="display:none;">
+          <div class="forge-header mt-6">
+            <h2 class="forge-title sm">Optimized Headlines</h2>
           </div>
-          <div class="stat-card">
-            <div class="stat-value" id="metric-followers">0</div>
-            <div class="stat-label">Total Comments</div>
-            <div class="stat-trend down"><span style="font-size:8px">●</span> real-time from LinkedIn</div>
+          <div id="strategyHeadlines" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
+            <!-- Injected by JS -->
           </div>
-          <div class="stat-card">
-            <div class="stat-value" id="metric-viewers">0</div>
-            <div class="stat-label">Posts Published</div>
-            <div class="stat-trend down" style="background:transparent;color:var(--text-muted);padding-left:0">via this app + LinkedIn</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="metric-searches">0</div>
-            <div class="stat-label">Latest Post</div>
-            <div class="stat-trend down" style="background:transparent;color:var(--text-muted);padding-left:0">—</div>
-          </div>
-        </div>
 
-        <div class="forge-header mt-6">
-          <h2 class="forge-title sm">Top Performing Posts</h2>
-        </div>
-        
-        <div class="top-posts-list" id="topPostsList">
-          <!-- Populated by JS -->
-          <div class="kpi-row">
-            <div class="kpi-post-text">Excited to announce our new product launch! The team has been working...</div>
-            <div class="kpi-metrics">
-              <div class="kpi-metric"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> 4.2k</div>
-              <div class="kpi-metric"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg> 382</div>
-              <div class="kpi-metric"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> 45</div>
-            </div>
+          <div class="forge-header mt-6">
+            <h2 class="forge-title sm">7-Day Content Calendar</h2>
+          </div>
+          <div id="strategyPlan" style="display:flex;flex-direction:column;gap:16px;">
+            <!-- Injected by JS -->
           </div>
         </div>
       </div>
@@ -420,9 +407,9 @@
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M3 9h18M9 21V9"></path></svg>
       Queue
     </button>
-    <button class="mobile-nav-item" data-tab="analytics" onclick="switchTab('analytics', this)">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
-      Data
+    <button class="mobile-nav-item" data-tab="strategy" onclick="switchTab('strategy', this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+      Strategy
     </button>
     <button class="mobile-nav-item" data-tab="settings" onclick="switchTab('settings', this)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>

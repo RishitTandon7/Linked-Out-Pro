@@ -100,11 +100,11 @@ async function callGemini(body, timeoutMs = 30000) {
 }
 
 // ---- Image Helper ----
-function imageFileToGeminiPart(filePath, mimetype) {
+function fileToGeminiPart(filePath, mimetype) {
   const data = fs.readFileSync(filePath);
   return {
     inline_data: {
-      mime_type: mimetype || 'image/jpeg',
+      mime_type: mimetype || 'application/octet-stream',
       data:      data.toString('base64')
     }
   };
@@ -129,18 +129,20 @@ const toneMap = {
  * Analyze images and generate a LinkedIn post
  * @param {Array<{path, mimetype}>} imageFiles
  */
-async function generateLinkedInPost(imageFiles, context, intent, tone, currentDate) {
+async function generateLinkedInPost(mediaFiles, context, intent, tone, currentDate) {
   const today = currentDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const prompt = `You are an expert LinkedIn content creator and personal branding strategist.
 
 Today's date is: ${today}.
 
 ${
-  imageFiles.length === 0
+  mediaFiles.length === 0
     ? 'Generate a post based solely on the context provided below.'
-    : imageFiles.length === 1
-      ? 'Analyze the provided image carefully (such as a certificate, document, award, or photo) and use it as the basis for the post.'
-      : `Analyze all ${imageFiles.length} provided event/related photos carefully as a set.`
+    : mediaFiles.length === 1 && mediaFiles[0]?.mimetype?.startsWith('video/')
+      ? 'The user has shared a video. You cannot see the video directly, but craft a post for sharing this video on LinkedIn.'
+      : mediaFiles.length === 1
+        ? 'Analyze the provided image carefully (such as a certificate, document, award, or photo) and use it as the basis for the post.'
+        : `Analyze all ${mediaFiles.filter(f => !f.mimetype?.startsWith('video/')).length} provided event/related photos carefully as a set.`
 }${context ? `\n\nAdditional context from the user: "${context}"` : ''}
 
 Create a complete, full-length LinkedIn post with these specifications:
@@ -184,10 +186,22 @@ HASHTAGS:
 ANALYSIS:
 [1-2 sentence image description]`;
 
-  const imageParts = imageFiles.map(f => imageFileToGeminiPart(f.path, f.mimetype));
+  // Separate images (can be sent inline) from videos (not supported inline in REST API)
+  const imageFiles = mediaFiles.filter(f => !f.mimetype || !f.mimetype.startsWith('video/'));
+  const videoFiles = mediaFiles.filter(f => f.mimetype && f.mimetype.startsWith('video/'));
+
+  const imageParts = imageFiles.map(f => fileToGeminiPart(f.path, f.mimetype));
+
+  // Build a supplementary note for videos so Gemini knows one was provided
+  let videoNote = '';
+  if (videoFiles.length > 0) {
+    videoNote = `\n\nNote: The user has also attached ${videoFiles.length} video file(s). You cannot see the video content directly, but treat this as a video post and write content appropriate for sharing a video on LinkedIn (e.g., "Check out this video", "I'm sharing a short clip...").`;
+  }
+
+  const promptWithVideo = prompt + videoNote;
 
   const body = {
-    contents: [{ parts: [{ text: prompt }, ...imageParts] }],
+    contents: [{ parts: [{ text: promptWithVideo }, ...imageParts] }],
     generationConfig: { temperature: 0.95, maxOutputTokens: 4096 }
   };
 
@@ -254,4 +268,48 @@ function parseGeminiResponse(raw) {
   return { postText, hashtags, analysis };
 }
 
-module.exports = { generateLinkedInPost, suggestSchedule };
+async function generateResumeStrategy(mediaFile, currentHeadline) {
+  const filePart = fileToGeminiPart(mediaFile.path, mediaFile.mimetype);
+  
+  const prompt = `You are a premium LinkedIn Ghostwriter and Strategist.
+The user has attached their Resume/CV/Experience document below. Their current LinkedIn Headline is: "${currentHeadline || 'None'}".
+
+Your task is to analyze their experience and generate:
+1. 3 highly optimized LinkedIn Headlines (focus on value proposition and authority).
+2. A complete 7-day content calendar (post drafts) based entirely on their real work experience.
+
+Each post should have a scroll-stopping hook, short punchy paragraphs, 2-4 emojis, and a clear takeaway or call-to-action. Do not use cliché phrases.
+
+Return ONLY a valid JSON object strictly matching this schema (do not include markdown code block formatting):
+{
+  "headlines": ["Headline 1", "Headline 2", "Headline 3"],
+  "plan": [
+    {
+      "day": 1,
+      "topic": "Topic summary",
+      "draft": "Full LinkedIn post text (3-5 paragraphs, formatted, with hook)"
+    },
+    { "day": 2, "topic": "...", "draft": "..." },
+    { "day": 3, "topic": "...", "draft": "..." },
+    { "day": 4, "topic": "...", "draft": "..." },
+    { "day": 5, "topic": "...", "draft": "..." },
+    { "day": 6, "topic": "...", "draft": "..." },
+    { "day": 7, "topic": "...", "draft": "..." }
+  ]
+}`;
+
+  const body = {
+    contents: [{ parts: [{ text: prompt }, filePart] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+  };
+
+  const response = await callGemini(body, 90000); // 90s timeout for large generation
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('Empty response from Gemini');
+  
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) return JSON.parse(jsonMatch[0]);
+  throw new Error('Failed to parse Gemini JSON output');
+}
+
+module.exports = { generateLinkedInPost, suggestSchedule, generateResumeStrategy };

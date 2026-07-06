@@ -5,7 +5,7 @@ const path     = require('path');
 const fs       = require('fs');
 const crypto   = require('crypto');
 const { requireAuth } = require('../middleware/auth');
-const { generateLinkedInPost, suggestSchedule } = require('../services/gemini');
+const { generateLinkedInPost, suggestSchedule, generateResumeStrategy } = require('../services/gemini');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { getNextPostingSlots } = require('../services/scheduler');
 const { uploadImage, deleteImage } = require('../services/storage');
@@ -27,10 +27,32 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '10') * 1024 * 1024 },
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '200') * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/') || file.mimetype === 'application/pdf' || file.mimetype === 'text/plain') cb(null, true);
+    else cb(new Error('Only image, video, PDF, and text files are allowed'));
+  }
+});
+
+// ---- POST /api/analyze/resume-strategy ----
+router.post('/resume-strategy', requireAuth, upload.single('resume'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Please upload a resume file (PDF or TXT)' });
+  }
+
+  try {
+    const mediaFile = { path: req.file.path, mimetype: req.file.mimetype };
+    const strategy = await generateResumeStrategy(mediaFile, req.user.headline);
+    
+    // Cleanup temp file
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error('Failed to delete temp resume file:', err);
+    });
+
+    res.json(strategy);
+  } catch (error) {
+    console.error('Resume strategy error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate strategy' });
   }
 });
 

@@ -120,6 +120,105 @@ async function uploadImageToLinkedIn(accessToken, linkedinId, imagePath, mimetyp
 }
 
 /**
+ * Upload a video to LinkedIn using the Videos API and return the video URN.
+ * API: POST /rest/videos?action=initializeUpload  (LinkedIn-Version: 202603)
+ */
+async function uploadVideoToLinkedIn(accessToken, linkedinId, videoPath, mimetype) {
+  const headers = {
+    Authorization:               `Bearer ${accessToken}`,
+    'Content-Type':              'application/json',
+    'LinkedIn-Version':          LI_VERSION,
+    'X-Restli-Protocol-Version': '2.0.0'
+  };
+
+  try {
+    const videoBuffer = fs.readFileSync(videoPath);
+    const fileSizeBytes = videoBuffer.length;
+
+    // Step 1: Initialize the video upload
+    const initRes = await axios.post(
+      'https://api.linkedin.com/rest/videos?action=initializeUpload',
+      {
+        initializeUploadRequest: {
+          owner:            `urn:li:person:${linkedinId}`,
+          fileSizeBytes,
+          uploadCaptions:   false,
+          uploadThumbnail:  false
+        }
+      },
+      { headers }
+    );
+
+    const value      = initRes.data.value;
+    const videoUrn   = value?.video;
+    const uploadUrls = value?.uploadInstructions?.map(u => u.uploadUrl) || [];
+    const singleUrl  = value?.uploadUrl;
+
+    if (!videoUrn) throw new Error('LinkedIn video upload init: missing video URN');
+
+    console.log(`📡 LinkedIn video URN: ${videoUrn}`);
+
+    if (uploadUrls.length > 0) {
+      // Chunked upload — split buffer across provided URLs
+      const chunkSize = Math.ceil(fileSizeBytes / uploadUrls.length);
+      for (let i = 0; i < uploadUrls.length; i++) {
+        const chunk = videoBuffer.slice(i * chunkSize, (i + 1) * chunkSize);
+        await axios.put(uploadUrls[i], chunk, {
+          headers: {
+            Authorization:      `Bearer ${accessToken}`,
+            'Content-Type':     mimetype || 'video/mp4',
+            'LinkedIn-Version': LI_VERSION
+          }
+        });
+        console.log(`📤 Video chunk ${i + 1}/${uploadUrls.length} uploaded`);
+      }
+    } else if (singleUrl) {
+      // Single PUT upload
+      await axios.put(singleUrl, videoBuffer, {
+        headers: {
+          Authorization:      `Bearer ${accessToken}`,
+          'Content-Type':     mimetype || 'video/mp4',
+          'LinkedIn-Version': LI_VERSION
+        }
+      });
+    } else {
+      throw new Error('LinkedIn video upload init: no uploadUrl returned');
+    }
+
+    // Step 3: Finalize the upload
+    try {
+      const etag = (uploadUrls.length > 0)
+        ? uploadUrls.map((_, i) => `"chunk-${i}"`) : [];
+      await axios.post(
+        'https://api.linkedin.com/rest/videos?action=finalizeUpload',
+        {
+          finalizeUploadRequest: {
+            video:             videoUrn,
+            uploadToken:       value?.uploadToken || '',
+            uploadedPartIds:   etag
+          }
+        },
+        { headers }
+      );
+    } catch (finalErr) {
+      // Finalize may return 200 with empty body — only fail on non-2xx
+      if (finalErr.response?.status && finalErr.response.status >= 300) throw finalErr;
+    }
+
+    console.log(`✅ Video uploaded to LinkedIn: ${videoUrn}`);
+    return videoUrn;
+
+  } catch (err) {
+    console.error('LinkedIn Video Upload Error:', {
+      msg:    err.message,
+      status: err.response?.status,
+      data:   JSON.stringify(err.response?.data)
+    });
+    throw new Error(`LinkedIn Video Upload Failed: ${err.response?.data?.message || err.message}`);
+  }
+}
+
+/**
  * Sanitize special Rest.li characters in the commentary text.
  * The LinkedIn REST API's commentary field is parsed by Rest.li, which treats
  * special characters like parentheses (), brackets [], braces {}, etc. as control
@@ -172,33 +271,46 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
     lifecycleState: 'PUBLISHED'
   };
 
-  // Upload images and attach to post
+  // Upload images / videos and attach to post
   if (images && images.length > 0) {
-    const imageUrns = [];
+    // Check if any file is a video
+    const hasVideo = images.some(img => img.mimetype && img.mimetype.startsWith('video/'));
 
-    for (const img of images) {
-      try {
-        console.log(`📤 Uploading image to LinkedIn: ${img.path}`);
-        const urn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
-        imageUrns.push(urn);
-      } catch (e) {
-        console.error('❌ LinkedIn image upload failed:', e.message);
-        throw e; // Stop — don't post text if images were intended but failed
-      }
-    }
-
-    if (imageUrns.length === 1) {
-      // Single image
+    if (hasVideo) {
+      // LinkedIn only supports one video per post; pick the first video
+      const videoFile = images.find(img => img.mimetype && img.mimetype.startsWith('video/'));
+      console.log(`📤 Uploading video to LinkedIn: ${videoFile.path}`);
+      const videoUrn = await uploadVideoToLinkedIn(accessToken, linkedinId, videoFile.path, videoFile.mimetype);
       postBody.content = {
-        media: { id: imageUrns[0] }
+        media: { id: videoUrn }
       };
     } else {
-      // Multi-image carousel
-      postBody.content = {
-        multiImage: {
-          images: imageUrns.map(id => ({ id }))
+      const imageUrns = [];
+
+      for (const img of images) {
+        try {
+          console.log(`📤 Uploading image to LinkedIn: ${img.path}`);
+          const urn = await uploadImageToLinkedIn(accessToken, linkedinId, img.path, img.mimetype);
+          imageUrns.push(urn);
+        } catch (e) {
+          console.error('❌ LinkedIn image upload failed:', e.message);
+          throw e; // Stop — don't post text if images were intended but failed
         }
-      };
+      }
+
+      if (imageUrns.length === 1) {
+        // Single image
+        postBody.content = {
+          media: { id: imageUrns[0] }
+        };
+      } else {
+        // Multi-image carousel
+        postBody.content = {
+          multiImage: {
+            images: imageUrns.map(id => ({ id }))
+          }
+        };
+      }
     }
   }
 
