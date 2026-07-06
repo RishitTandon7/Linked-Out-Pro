@@ -55,7 +55,7 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  res.redirect('/api/auth/linkedin');
 });
 app.get('/privacy', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
