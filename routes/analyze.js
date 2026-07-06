@@ -6,6 +6,7 @@ const fs       = require('fs');
 const crypto   = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { generateLinkedInPost, suggestSchedule, generateResumeStrategy } = require('../services/gemini');
+const { sendPushToUser } = require('../services/notifications');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { getNextPostingSlots } = require('../services/scheduler');
 const { uploadImage, deleteImage } = require('../services/storage');
@@ -48,6 +49,14 @@ router.post('/resume-strategy', requireAuth, upload.single('resume'), async (req
     fs.unlink(req.file.path, (err) => {
       if (err) console.error('Failed to delete temp resume file:', err);
     });
+
+    try {
+      await sendPushToUser(req.user.id, {
+        title: '✨ AI Strategy Ready',
+        body: 'Your personalized LinkedIn strategy has been generated.',
+        url: '/dashboard'
+      });
+    } catch(e) {}
 
     res.json(strategy);
   } catch (error) {
@@ -147,6 +156,14 @@ router.post('/generate', requireAuth, upload.array('images', 10), async (req, re
         console.log(`✅ Image ${i} (${f.filename}) saved at ${absPath}`);
       }
     }
+
+    try {
+      await sendPushToUser(req.user.id, {
+        title: '🤖 Post Forged',
+        body: 'Your AI generated post is ready for review.',
+        url: '/dashboard'
+      });
+    } catch(e) {}
 
     res.json({
       postId,

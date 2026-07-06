@@ -6,7 +6,7 @@ const crypto  = require('crypto');
 const { requireAuth }     = require('../middleware/auth');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { publishSinglePost } = require('../services/scheduler');
-const { notifyPostScheduled } = require('../services/notifications');
+const { notifyPostScheduled, notifyPostPublished } = require('../services/notifications');
 const { deleteImage } = require('../services/storage');
 
 const router = express.Router();
@@ -325,6 +325,7 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     }
 
     console.log(`✅ Post ${post.id} published to LinkedIn: ${linkedinPostId}`);
+    try { await notifyPostPublished(req.user.id, post.id); } catch (e) { /* silent */ }
     const updated = await getPost(post.id, req.user.id);
     res.json({ success: true, post: updated });
 

@@ -166,11 +166,27 @@ router.post('/fcm-token', requireAuth, async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'No token provided' });
   try {
+    let oldToken = null;
     if (db.IS_SUPABASE) {
+      const { data } = await db.supabase.from('users').select('fcm_token').eq('id', req.user.id).single();
+      oldToken = data?.fcm_token;
       await db.supabase.from('users').update({ fcm_token: token }).eq('id', req.user.id);
     } else {
+      const u = await db.get('SELECT fcm_token FROM users WHERE id = ?', [req.user.id]);
+      oldToken = u?.fcm_token;
       await db.run('UPDATE users SET fcm_token = ? WHERE id = ?', [token, req.user.id]);
     }
+    
+    // Only send welcome if it's a new or updated token
+    if (oldToken !== token) {
+      const { sendPushToUser } = require('../services/notifications');
+      sendPushToUser(req.user.id, {
+        title: '🔐 Welcome back to LinkedOut Pro',
+        body: 'Push notifications are now active for this device!',
+        url: '/dashboard'
+      });
+    }
+
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
