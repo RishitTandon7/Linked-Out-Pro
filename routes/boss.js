@@ -218,4 +218,89 @@ function buildDailyBuckets(rows, field, days) {
   return Object.entries(buckets).map(([date, count]) => ({ date, count }));
 }
 
+// ---- GET /api/boss/traffic ----
+// Returns page-view stats: total views, unique pages, today/week/month breakdown
+router.get('/traffic', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const { startOfToday, startOfWeek, startOfMonth } = getTimeBoundaries();
+
+    if (db.IS_SUPABASE) {
+      const sb = db.supabase;
+      const [allViews, today, week, month] = await Promise.all([
+        sb.from('page_views').select('*', { count: 'exact', head: true }),
+        sb.from('page_views').select('*', { count: 'exact', head: true }).gte('ts', startOfToday),
+        sb.from('page_views').select('*', { count: 'exact', head: true }).gte('ts', startOfWeek),
+        sb.from('page_views').select('*', { count: 'exact', head: true }).gte('ts', startOfMonth),
+      ]);
+
+      // Top pages breakdown
+      const { data: pagesData } = await sb.from('page_views').select('page').gte('ts', startOfMonth);
+      const pageCounts = {};
+      (pagesData || []).forEach(r => { pageCounts[r.page] = (pageCounts[r.page] || 0) + 1; });
+      const topPages = Object.entries(pageCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([page, views]) => ({ page, views }));
+
+      res.json({
+        totalViews: allViews.count || 0,
+        viewsToday: today.count  || 0,
+        viewsWeek:  week.count   || 0,
+        viewsMonth: month.count  || 0,
+        topPages,
+      });
+    } else {
+      const { get, all } = db;
+      const [total, tod, wk, mo] = await Promise.all([
+        get('SELECT COUNT(*) as c FROM page_views'),
+        get('SELECT COUNT(*) as c FROM page_views WHERE ts >= ?', [startOfToday]),
+        get('SELECT COUNT(*) as c FROM page_views WHERE ts >= ?', [startOfWeek]),
+        get('SELECT COUNT(*) as c FROM page_views WHERE ts >= ?', [startOfMonth]),
+      ]);
+      const topPages = await all(
+        `SELECT page, COUNT(*) as views FROM page_views WHERE ts >= ? GROUP BY page ORDER BY views DESC LIMIT 5`,
+        [startOfMonth]
+      );
+      res.json({
+        totalViews: total?.c  || 0,
+        viewsToday: tod?.c    || 0,
+        viewsWeek:  wk?.c     || 0,
+        viewsMonth: mo?.c     || 0,
+        topPages:   topPages  || [],
+      });
+    }
+  } catch (e) {
+    console.error('Boss traffic error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---- GET /api/boss/traffic-chart ----
+// Returns daily page-view counts for the past 30 days
+router.get('/traffic-chart', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const { thirtyDaysAgo } = getTimeBoundaries();
+    let chartData = [];
+
+    if (db.IS_SUPABASE) {
+      const { data } = await db.supabase.from('page_views')
+        .select('ts')
+        .gte('ts', thirtyDaysAgo)
+        .order('ts', { ascending: true });
+      chartData = buildDailyBuckets((data || []).map(r => ({ created_at: r.ts })), 'created_at', 30);
+    } else {
+      const rows = await db.all(
+        `SELECT ts as created_at FROM page_views WHERE ts >= ? ORDER BY ts ASC`,
+        [thirtyDaysAgo]
+      );
+      chartData = buildDailyBuckets(rows, 'created_at', 30);
+    }
+
+    res.json({ chartData });
+  } catch (e) {
+    console.error('Boss traffic-chart error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

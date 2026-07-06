@@ -150,6 +150,18 @@ if (IS_SUPABASE) {
     // Safe migration: add column if it doesn't exist yet (for existing DBs)
     await run(`ALTER TABLE user_settings ADD COLUMN last_ai_strategy TEXT`).catch(() => {});
 
+    // Page-view tracking table
+    await run(`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        page      TEXT NOT NULL,
+        ts        INTEGER NOT NULL DEFAULT (unixepoch()),
+        referrer  TEXT DEFAULT ''
+      )
+    `);
+    await run(`CREATE INDEX IF NOT EXISTS idx_pv_ts   ON page_views(ts)`);
+    await run(`CREATE INDEX IF NOT EXISTS idx_pv_page ON page_views(page)`);
+
     console.log('✅ Database schema ready');
   }
 

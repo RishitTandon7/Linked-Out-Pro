@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const cors         = require('cors');
 const { initSchema } = require('./database/db');
 const { startScheduler } = require('./services/scheduler');
+const { trackPageView }  = require('./middleware/traffic');
 
 // Routes
 const authRoutes      = require('./routes/auth');
@@ -25,6 +26,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(trackPageView); // 📊 Site traffic tracker
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
