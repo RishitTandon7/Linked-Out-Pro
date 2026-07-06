@@ -423,7 +423,7 @@ async function generateStrategy() {
   try {
     const res = await fetch('/api/analyze/resume-strategy', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('lo_token')}` },
+      credentials: 'include',
       body: formData
     });
     
