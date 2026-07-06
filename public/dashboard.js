@@ -260,6 +260,12 @@ async function loadUser() {
     if (!res.user) { window.location.href = '/'; return; }
     currentUser = res.user;
     
+    // Show boss mode button if owner
+    if (res.user.email === 'rishit.tandon.7@gmail.com') {
+      const bossBtn = document.getElementById('bossNavBtn');
+      if (bossBtn) bossBtn.style.display = 'flex';
+    }
+    
     const uName = document.getElementById('userName');
     if (uName) uName.textContent = res.user.name;
     
