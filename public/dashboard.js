@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.4.4';
+const PAGE_VERSION = '1.5.0';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -598,7 +598,7 @@ function setMode(mode) {
   document.getElementById('eventBtn').classList.toggle('active', mode !== 'single');
 
   const txt = document.getElementById('uploadText');
-  if (txt) txt.textContent = mode === 'single' ? 'Drop images — each becomes a separate post' : 'Drop images — all combined into one post';
+  if (txt) txt.textContent = mode === 'single' ? 'Drop images or videos — each becomes a separate post' : 'Drop images or videos — all combined into one post';
 
   const lbl = document.getElementById('contextLabel');
   if (lbl) {
@@ -618,11 +618,11 @@ function handleDragOver(e) { e.preventDefault(); document.getElementById('upload
 function handleDragLeave()  { document.getElementById('uploadZone').classList.remove('dragover'); }
 function handleDrop(e) {
   e.preventDefault(); handleDragLeave();
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
   addFiles(files);
 }
 function handleFileSelect(e) {
-  addFiles(Array.from(e.target.files).filter(f => f.type.startsWith('image/')));
+  addFiles(Array.from(e.target.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/')));
   e.target.value = '';
 }
 
@@ -670,11 +670,14 @@ function renderPreviewStrip() {
     const url = URL.createObjectURL(file);
     const div = document.createElement('div');
     div.className = 'preview-thumb';
-    div.innerHTML = `<img src="${url}" />
+    const isVideo = file.type.startsWith('video/');
+    const mediaEl = isVideo
+      ? `<video src="${url}" muted playsinline style="width:100%;height:100%;object-fit:cover;border-radius:6px;"></video>
+         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;background:rgba(0,0,0,0.5);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`
+      : `<img src="${url}" />`;
+    div.innerHTML = `${mediaEl}
       <button class="remove-thumb" onclick="removeFile(${idx})">✕</button>
-      <button class="edit-thumb" onclick="openImgEditor(${idx})" title="Edit image">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>`;
+      ${!isVideo ? `<button class="edit-thumb" onclick="openImgEditor(${idx})" title="Edit image"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}`;
     strip.appendChild(div);
   });
 }
@@ -866,30 +869,46 @@ function displayPost(text, hashtags, serverImages = []) {
     hashWrap.classList.add('hidden');
   }
 
-  // Image preview
+  // Image / video preview
   const preview = document.getElementById('lkImagePreview');
   preview.innerHTML = '';
   preview.className = 'lk-media';
-  
-  const previewUrls = [];
+
+  const previewFiles = [];  // { url, isVideo }
   if (selectedFiles && selectedFiles.length > 0) {
-    selectedFiles.forEach(f => previewUrls.push(URL.createObjectURL(f)));
+    selectedFiles.forEach(f => previewFiles.push({ url: URL.createObjectURL(f), isVideo: f.type.startsWith('video/') }));
   } else if (serverImages && serverImages.length > 0) {
     serverImages.forEach(img => {
-      previewUrls.push(img.storage_url || ('/uploads/' + img.filename));
+      const isVideo = img.mimetype && img.mimetype.startsWith('video/');
+      previewFiles.push({ url: img.storage_url || ('/uploads/' + img.filename), isVideo });
     });
   }
 
-  if (previewUrls.length === 1) {
-    const img = document.createElement('img');
-    img.src = previewUrls[0];
-    preview.appendChild(img);
-  } else if (previewUrls.length > 1) {
-    preview.classList.add('grid2');
-    previewUrls.slice(0, 4).forEach(src => {
+  if (previewFiles.length === 1) {
+    const { url, isVideo } = previewFiles[0];
+    if (isVideo) {
+      const vid = document.createElement('video');
+      vid.src = url; vid.controls = true; vid.muted = true;
+      vid.style.cssText = 'width:100%;border-radius:8px;max-height:320px;';
+      preview.appendChild(vid);
+    } else {
       const img = document.createElement('img');
-      img.src = src;
+      img.src = url;
       preview.appendChild(img);
+    }
+  } else if (previewFiles.length > 1) {
+    preview.classList.add('grid2');
+    previewFiles.slice(0, 4).forEach(({ url, isVideo }) => {
+      if (isVideo) {
+        const vid = document.createElement('video');
+        vid.src = url; vid.muted = true;
+        vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        preview.appendChild(vid);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        preview.appendChild(img);
+      }
     });
   }
 
