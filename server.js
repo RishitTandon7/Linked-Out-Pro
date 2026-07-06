@@ -15,6 +15,7 @@ const postsRoutes     = require('./routes/posts');
 const settingsRoutes  = require('./routes/settings');
 const cronRoutes      = require('./routes/cron');
 const analyticsRoutes = require('./routes/analytics');
+const bossRoutes      = require('./routes/boss');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,7 @@ app.use('/api/posts',     postsRoutes);
 app.use('/api/settings',  settingsRoutes);
 app.use('/api/cron',      cronRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/boss',      bossRoutes);
 
 // ---- Version endpoint — used by the client to detect when a new deploy is live ----
 const APP_VERSION = '1.4.5';
@@ -54,6 +56,12 @@ app.get('/dashboard', (req, res) => {
 });
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+app.get('/boss', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'boss.html'));
 });
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

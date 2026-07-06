@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boss Mode — LinkedOut Pro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:             #05070A;
+      --surface:        #0D0F14;
+      --surface-2:      #141720;
+      --border:         rgba(255,255,255,0.07);
+      --border-hover:   rgba(255,255,255,0.14);
+      --text-primary:   #F0F0F5;
+      --text-secondary: rgba(240,240,245,0.6);
+      --text-muted:     rgba(240,240,245,0.32);
+      --primary:        #0077B5;
+      --primary-light:  #0A9FE0;
+      --green:          #10b981;
+      --amber:          #f59e0b;
+      --red:            #ef4444;
+      --purple:         #8b5cf6;
+      --font:           'Inter', sans-serif;
+      --ease:           cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    html, body { background: var(--bg); color: var(--text-primary); font-family: var(--font); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    /* ======================== NAV ======================== */
+    .nav {
+      height: 60px; background: rgba(5,7,10,0.9);
+      backdrop-filter: blur(20px); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center;
+    }
+    .nav-inner {
+      max-width: 1400px; width: 100%; margin: 0 auto; padding: 0 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 12px; }
+    .nav-brand img { width: 22px; height: 22px; border-radius: 5px; }
+    .nav-brand-text { font-size: 0.875rem; font-weight: 800; color: var(--text-primary); }
+    .boss-badge {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font-size: 0.6rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.15em;
+      padding: 3px 10px; border-radius: 99px;
+    }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .nav-user { font-size: 0.75rem; color: var(--text-muted); }
+    .btn-logout {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+      color: #f87171; font-size: 0.75rem; font-weight: 700;
+      padding: 7px 14px; border-radius: 8px; cursor: pointer;
+      font-family: var(--font); transition: all 0.2s; letter-spacing: 0.02em;
+    }
+    .btn-logout:hover { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); }
+
+    /* ======================== LAYOUT ======================== */
+    .page { max-width: 1400px; margin: 0 auto; padding: 40px 32px 80px; }
+    .page-header { margin-bottom: 40px; }
+    .page-eyebrow {
+      font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.2em; color: var(--purple); margin-bottom: 10px;
+    }
+    .page-title { font-size: 2rem; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); margin-bottom: 6px; }
+    .page-sub { font-size: 0.85rem; color: var(--text-secondary); }
+    .refresh-btn {
+      margin-top: 16px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-secondary); font-size: 0.75rem; font-weight: 600;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-family: var(--font); display: inline-flex; align-items: center; gap: 8px;
+      transition: all 0.2s; letter-spacing: 0.01em;
+    }
+    .refresh-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+    .refresh-btn svg { transition: transform 0.4s; }
+    .refresh-btn.spinning svg { animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ======================== STATS GRID ======================== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 40px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 22px 24px;
+      transition: all 0.2s var(--ease); position: relative; overflow: hidden;
+    }
+    .stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--accent, var(--primary));
+      opacity: 0.6;
+    }
+    .stat-card[data-accent="green"]::before  { --accent: var(--green); }
+    .stat-card[data-accent="amber"]::before  { --accent: var(--amber); }
+    .stat-card[data-accent="purple"]::before { --accent: var(--purple); }
+    .stat-card[data-accent="red"]::before    { --accent: var(--red); }
+
+    .stat-icon { font-size: 1.4rem; margin-bottom: 14px; }
+    .stat-label {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 2rem; font-weight: 900; letter-spacing: -0.04em;
+      color: var(--text-primary); line-height: 1;
+    }
+    .stat-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; }
+    .skeleton { background: rgba(255,255,255,0.06); border-radius: 6px; height: 2rem; width: 60%; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    /* ======================== CHART SECTION ======================== */
+    .section-title {
+      font-size: 1rem; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--text-primary); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .chart-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px; margin-bottom: 40px;
+    }
+    .chart-container { position: relative; height: 260px; }
+
+    /* ======================== USER TABLE ======================== */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; overflow: hidden; margin-bottom: 40px;
+    }
+    .table-header {
+      padding: 20px 28px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .table-count { font-size: 0.75rem; color: var(--text-muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; padding: 12px 28px;
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.14em; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    td { padding: 14px 28px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .user-name { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+    .user-email { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-cell { display: flex; align-items: center; gap: 12px; }
+    .date-text { font-size: 0.78rem; color: var(--text-secondary); }
+    .load-more-btn {
+      width: 100%; padding: 14px;
+      background: var(--surface-2); border: none; border-top: 1px solid var(--border);
+      color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; font-family: var(--font);
+      transition: all 0.2s; letter-spacing: 0.02em;
+    }
+    .load-more-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+
+    /* ======================== EMPTY / ERROR STATES ======================== */
+    .empty-state { text-align: center; padding: 48px; color: var(--text-muted); font-size: 0.85rem; }
+    .error-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      color: #f87171; padding: 12px 24px; border-radius: 12px;
+      font-size: 0.8rem; font-weight: 600; z-index: 1000; display: none;
+    }
+
+    /* ======================== GATE SCREEN ======================== */
+    .gate-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; padding: 32px;
+    }
+    .gate-icon { font-size: 3rem; }
+    .gate-title { font-size: 1.5rem; font-weight: 900; color: var(--text-primary); }
+    .gate-sub { font-size: 0.875rem; color: var(--text-secondary); text-align: center; max-width: 320px; }
+    .gate-btn {
+      margin-top: 8px; padding: 12px 28px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 10px; font-family: var(--font);
+      font-size: 0.875rem; font-weight: 700; cursor: pointer;
+      text-decoration: none; display: inline-block;
+      transition: all 0.2s;
+    }
+    .gate-btn:hover { background: var(--primary-light); }
+
+    /* ======================== RESPONSIVE ======================== */
+    @media (max-width: 900px) {
+      .page { padding: 28px 20px 60px; }
+      .nav-inner { padding: 0 20px; }
+      th, td { padding: 12px 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 540px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .page-title { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Gate Screen (shown if not authorized) -->
+  <div id="gateScreen" class="gate-screen" style="display:none;">
+    <div class="gate-icon">🔐</div>
+    <p class="gate-title">Access Denied</p>
+    <p class="gate-sub" id="gateMsg">This page is restricted to the site owner only.</p>
+    <a href="/" class="gate-btn">← Back to Home</a>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" style="display:none;">
+
+    <nav class="nav">
+      <div class="nav-inner">
+        <div class="nav-brand">
+          <img src="/logo.svg" alt="LinkedOut Pro" />
+          <span class="nav-brand-text">LinkedOut Pro</span>
+          <span class="boss-badge">Boss Mode</span>
+        </div>
+        <div class="nav-right">
+          <span class="nav-user" id="navUser"></span>
+          <button class="btn-logout" onclick="logout()">Sign Out</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="page">
+      <div class="page-header">
+        <p class="page-eyebrow">Admin Dashboard</p>
+        <h1 class="page-title">👑 Boss Mode</h1>
+        <p class="page-sub">Real-time overview of LinkedOut Pro platform metrics</p>
+        <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M1 4v6h6"/><path d="M23 20v-6h-6"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid" id="statsGrid">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Signups Chart -->
+      <div class="chart-wrap">
+        <p class="section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Signups Over the Past 30 Days
+        </p>
+        <div class="chart-container">
+          <canvas id="signupsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Users Table -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <p class="section-title" style="margin:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A9FE0" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg>
+            Registered Users
+          </p>
+          <span class="table-count" id="tableCount">Loading...</span>
+        </div>
+        <div id="usersTableBody">
+          <div class="empty-state">Loading users...</div>
+        </div>
+      </div>
+
+    </div><!-- end page -->
+  </div><!-- end dashboard -->
+
+  <div class="error-toast" id="errorToast"></div>
+
+  <script>
+    const OWNER_EMAIL = 'rishit.tandon.7@gmail.com';
+    let signupsChartInstance = null;
+    let usersOffset = 0;
+    const USERS_LIMIT = 25;
+    let totalUsersCount = 0;
+    let allUsersLoaded = false;
+
+    // ======================== BOOT ========================
+    async function boot() {
+      try {
+        const res  = await fetch('/api/auth/me', { credentials: 'include' });
+        const data = await res.json();
+        const user = data?.user;
+
+        if (!user) {
+          showGate('You must be signed in to access this page.', true);
+          return;
+        }
+        if (user.email !== OWNER_EMAIL) {
+          showGate(`Access restricted. Signed in as: ${user.email}`);
+          return;
+        }
+
+        // Authorized!
+        document.getElementById('navUser').textContent = user.email;
+        document.getElementById('dashboard').style.display = 'block';
+        loadAll();
+
+      } catch (e) {
+        showGate('Failed to verify identity. Please try again.');
+      }
+    }
+
+    function showGate(msg, showLogin = false) {
+      const gate = document.getElementById('gateScreen');
+      document.getElementById('gateMsg').textContent = msg;
+      if (showLogin) {
+        gate.querySelector('a').href = '/login';
+        gate.querySelector('a').textContent = 'Sign In';
+      }
+      gate.style.display = 'flex';
+    }
+
+    // ======================== LOAD ALL DATA ========================
+    async function loadAll() {
+      const btn = document.getElementById('refreshBtn');
+      btn.classList.add('spinning');
+      btn.disabled = true;
+
+      usersOffset = 0;
+      allUsersLoaded = false;
+
+      await Promise.all([
+        loadStats(),
+        loadChart(),
+        loadUsers(true),
+      ]);
+
+      btn.classList.remove('spinning');
+      btn.disabled = false;
+    }
+
+    // ======================== STATS ========================
+    async function loadStats() {
+      renderStatsGrid(null); // skeleton
+      try {
+        const res  = await fetch('/api/boss/stats', { credentials: 'include' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        renderStatsGrid(data);
+      } catch (e) {
+        showError('Failed to load stats: ' + e.message);
+      }
+    }
+
+    function renderStatsGrid(data) {
+      const grid = document.getElementById('statsGrid');
+      const cards = [
+        { label: 'Total Users',       value: data?.totalUsers,    icon: '👥', accent: 'blue',   sub: 'Registered accounts' },
+        { label: 'Signups Today',      value: data?.signupsToday,  icon: '🆕', accent: 'green',  sub: 'New today' },
+        { label: 'Signups This Week',  value: data?.signupsWeek,   icon: '📆', accent: 'blue',   sub: 'Last 7 days' },
+        { label: 'Signups This Month', value: data?.signupsMonth,  icon: '📅', accent: 'amber',  sub: 'This calendar month' },
+        { label: 'DAU',                value: data?.dau,           icon: '⚡', accent: 'purple', sub: 'Active users today' },
+        { label: 'Total Captions',     value: data?.totalCaptions, icon: '✨', accent: 'blue',   sub: 'All-time generated' },
+        { label: 'Captions Today',     value: data?.captionsToday, icon: '🚀', accent: 'green',  sub: 'Generated today' },
+      ];
+
+      grid.innerHTML = cards.map(card => `
+        <div class="stat-card" data-accent="${card.accent}">
+          <div class="stat-icon">${card.icon}</div>
+          <div class="stat-label">${card.label}</div>
+          ${data === null
+            ? `<div class="skeleton"></div>`
+            : `<div class="stat-value">${fmt(card.value)}</div>`
+          }
+          <div class="stat-sub">${card.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    // ======================== CHART ========================
+    async function loadChart() {
+      try {
+        const res  = await fetch('/api/boss/signups-chart', { credentials: 'include' });
+        if (!res.ok) throw new Error(await res.text());
+        const { chartData } = await res.json();
+        renderChart(chartData);
+      } catch (e) {
+        showError('Failed to load chart: ' + e.message);
+      }
+    }
+
+    function renderChart(chartData) {
+      const labels = chartData.map(d => {
+        const dt = new Date(d.date);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+      const values = chartData.map(d => d.count);
+
+      const ctx = document.getElementById('signupsChart').getContext('2d');
+      if (signupsChartInstance) signupsChartInstance.destroy();
+
+      signupsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Signups',
+            data: values,
+            backgroundColor: (ctx) => {
+              const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260);
+              g.addColorStop(0,   'rgba(139, 92, 246, 0.8)');
+              g.addColorStop(1,   'rgba(139, 92, 246, 0.1)');
+              return g;
+            },
+            borderColor: 'rgba(139,92,246,0.9)',
+            borderWidth: 1.5,
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0D0F14',
+              borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+              titleColor: '#F0F0F5', bodyColor: 'rgba(240,240,245,0.6)',
+              padding: 12, cornerRadius: 10,
+              callbacks: {
+                label: (ctx) => ` ${ctx.parsed.y} signup${ctx.parsed.y !== 1 ? 's' : ''}`,
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: 'rgba(240,240,245,0.35)', font: { size: 10 }, maxTicksLimit: 15 },
+              grid:  { display: false },
+              border: { display: false }
+            },
+            y: {
+              ticks: { color: 'rgba(240,240,245,0.35)', font: { size: 10 }, stepSize: 1 },
+              grid:  { color: 'rgba(255,255,255,0.05)' },
+              border: { display: false },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    // ======================== USERS TABLE ========================
+    async function loadUsers(reset = false) {
+      if (reset) {
+        usersOffset = 0;
+        allUsersLoaded = false;
+        document.getElementById('usersTableBody').innerHTML = '<div class="empty-state">Loading users...</div>';
+      }
+      if (allUsersLoaded) return;
+
+      try {
+        const url = `/api/boss/users?limit=${USERS_LIMIT}&offset=${usersOffset}`;
+        const res  = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(await res.text());
+        const { users, total } = await res.json();
+
+        totalUsersCount = total;
+        document.getElementById('tableCount').textContent = `${total} total`;
+
+        if (reset) {
+          renderUsersTable(users, total);
+        } else {
+          appendUserRows(users);
+        }
+
+        usersOffset += users.length;
+        if (usersOffset >= total) {
+          allUsersLoaded = true;
+          const btn = document.getElementById('loadMoreBtn');
+          if (btn) btn.remove();
+        }
+
+      } catch (e) {
+        showError('Failed to load users: ' + e.message);
+      }
+    }
+
+    function renderUsersTable(users, total) {
+      const body = document.getElementById('usersTableBody');
+      if (users.length === 0) {
+        body.innerHTML = '<div class="empty-state">No users yet.</div>';
+        return;
+      }
+
+      body.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Signed Up</th>
+              <th>Last Active</th>
+            </tr>
+          </thead>
+          <tbody id="usersTbody">
+            ${users.map(u => userRow(u)).join('')}
+          </tbody>
+        </table>
+        ${usersOffset < total
+          ? `<button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreUsers()">Load More Users</button>`
+          : ''
+        }
+      `;
+    }
+
+    function appendUserRows(users) {
+      const tbody = document.getElementById('usersTbody');
+      if (!tbody) return;
+      tbody.insertAdjacentHTML('beforeend', users.map(u => userRow(u)).join(''));
+
+      // Update load-more button
+      if (usersOffset + users.length >= totalUsersCount) {
+        const btn = document.getElementById('loadMoreBtn');
+        if (btn) btn.remove();
+      }
+    }
+
+    function loadMoreUsers() {
+      loadUsers(false);
+    }
+
+    function userRow(u) {
+      const initials = (u.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+      const signedUp  = fmtDate(u.created_at);
+      const lastActive = fmtDate(u.updated_at);
+      return `
+        <tr>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar">
+                ${u.avatar_url
+                  ? `<img src="${u.avatar_url}" alt="${escHtml(u.name)}" onerror="this.parentElement.textContent='${initials}'" />`
+                  : initials
+                }
+              </div>
+              <div>
+                <div class="user-name">${escHtml(u.name || '—')}</div>
+                <div class="user-email">${escHtml(u.email || '—')}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="date-text">${signedUp}</span></td>
+          <td><span class="date-text">${lastActive}</span></td>
+        </tr>
+      `;
+    }
+
+    // ======================== HELPERS ========================
+    function fmt(n) {
+      if (n === undefined || n === null) return '—';
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000)    return (n / 1000).toFixed(1) + 'K';
+      return n.toLocaleString();
+    }
+
+    function fmtDate(ts) {
+      if (!ts) return '—';
+      let d;
+      if (typeof ts === 'number') d = new Date(ts * 1000);
+      else d = new Date(ts);
+      if (isNaN(d)) return '—';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showError(msg) {
+      const t = document.getElementById('errorToast');
+      t.textContent = msg; t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 5000);
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/';
+    }
+
+    // ======================== BOOT ========================
+    boot();
+  </script>
+</body>
+</html>

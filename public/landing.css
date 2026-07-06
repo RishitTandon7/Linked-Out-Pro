@@ -349,6 +349,108 @@ html, body {
 }
 .step-title { font-size: 1.1rem; font-weight: 800; color: var(--white); letter-spacing: -0.02em; margin-bottom: 12px; }
 .step-desc  { font-size: 0.875rem; font-weight: 400; color: var(--text-secondary); line-height: 1.7; }
+.step-icon  { font-size: 1.75rem; margin-bottom: 14px; }
+
+/* ========================
+   USE CASES SECTION
+   ======================== */
+.usecases-section {
+  position: relative; z-index: 1;
+  padding: 80px 32px 100px;
+  border-top: 1px solid var(--border);
+}
+.usecases-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+}
+.usecase-card {
+  padding: 28px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; transition: all 0.2s var(--ease);
+}
+.usecase-card:hover {
+  border-color: rgba(0,119,181,0.3); transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.usecase-emoji { font-size: 2rem; margin-bottom: 16px; }
+.usecase-title { font-size: 1rem; font-weight: 800; color: var(--white); margin-bottom: 10px; letter-spacing: -0.02em; }
+.usecase-desc  { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.65; }
+
+/* ========================
+   SAMPLE CAPTIONS SECTION
+   ======================== */
+.samples-section {
+  position: relative; z-index: 1;
+  padding: 80px 32px 100px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, transparent 0%, rgba(0,119,181,0.03) 50%, transparent 100%);
+}
+.samples-sub {
+  font-size: 1rem; color: var(--text-secondary); text-align: center;
+  margin-bottom: 48px; margin-top: -28px; line-height: 1.6;
+}
+.samples-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+}
+.sample-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 28px; display: flex; flex-direction: column;
+  gap: 16px; transition: border-color 0.2s;
+}
+.sample-card:hover { border-color: rgba(0,119,181,0.3); }
+.sample-tag {
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--primary-light);
+  background: rgba(0,119,181,0.1); border: 1px solid rgba(0,119,181,0.2);
+  padding: 5px 12px; border-radius: 99px; width: fit-content;
+}
+.sample-text {
+  font-size: 0.875rem; color: var(--text-secondary); line-height: 1.75;
+  white-space: pre-line; flex: 1;
+  border-left: 2px solid rgba(0,119,181,0.3); padding-left: 14px;
+}
+.sample-meta {
+  font-size: 0.7rem; color: var(--text-muted); font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ========================
+   FAQ SECTION
+   ======================== */
+.faq-section {
+  position: relative; z-index: 1;
+  padding: 80px 32px 100px;
+  border-top: 1px solid var(--border);
+}
+.faq-list {
+  max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 0;
+}
+.faq-item {
+  border-bottom: 1px solid var(--border);
+}
+.faq-q {
+  width: 100%; background: none; border: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 0; cursor: pointer;
+  font-family: var(--font); font-size: 0.9375rem; font-weight: 600;
+  color: var(--text-primary); text-align: left;
+  transition: color 0.2s;
+}
+.faq-q:hover { color: var(--primary-light); }
+.faq-arrow {
+  flex-shrink: 0; color: var(--text-muted);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-item.open .faq-arrow { transform: rotate(180deg); color: var(--primary-light); }
+.faq-item.open .faq-q     { color: var(--primary-light); }
+.faq-a {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-item.open .faq-a { max-height: 300px; }
+.faq-a p {
+  font-size: 0.875rem; color: var(--text-secondary); line-height: 1.75;
+  padding-bottom: 20px;
+}
 
 /* ========================
    FOOTER
@@ -364,6 +466,12 @@ html, body {
 }
 .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 700; color: var(--text-secondary); }
 .footer-copy  { font-size: 0.75rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 20px; align-items: center; }
+.footer-link  {
+  font-size: 0.75rem; color: var(--text-muted); text-decoration: none; font-weight: 500;
+  transition: color 0.2s;
+}
+.footer-link:hover { color: var(--primary-light); }
 
 /* ========================
    UTILITIES
@@ -382,8 +490,10 @@ html, body {
 @media (max-width: 900px) {
   .hero { padding: 130px 24px 48px; min-height: auto; }
   .steps-grid { grid-template-columns: 1fr; gap: 20px; }
+  .usecases-grid { grid-template-columns: repeat(2, 1fr); }
+  .samples-grid { grid-template-columns: 1fr; }
   .cards-wrap { display: none; margin: 0; height: 0; }
-  .how-section { padding: 48px 24px 56px; }
+  .how-section, .usecases-section, .samples-section, .faq-section { padding: 48px 24px 56px; }
   .section-title { margin-bottom: 40px; }
 }
 
@@ -398,10 +508,15 @@ html, body {
   .btn-signin { padding: 9px 14px; font-size: 0.75rem; }
   .pill { font-size: 0.7rem; padding: 7px 13px; gap: 5px; }
   .cta-primary { padding: 16px 28px; font-size: 0.875rem; width: 100%; justify-content: center; border-radius: 12px; }
-  .how-section { padding: 32px 20px 48px; }
+  .how-section, .usecases-section, .samples-section, .faq-section { padding: 32px 20px 48px; }
+  .usecases-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .section-eyebrow { margin-bottom: 10px; }
   .section-title { font-size: 1.7rem; margin-bottom: 28px; }
-  .step-card { padding: 24px; }
+  .step-card, .usecase-card { padding: 20px; }
+  .sample-card { padding: 20px; }
+  .samples-sub { font-size: 0.875rem; margin-bottom: 28px; }
   .footer { padding: 24px 20px; }
   .footer-inner { flex-direction: column; gap: 10px; text-align: center; }
+  .footer-links { justify-content: center; }
+  .faq-q { font-size: 0.875rem; }
 }
