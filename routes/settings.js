@@ -39,7 +39,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.patch('/', requireAuth, async (req, res) => {
   const {
     autoPostEnabled, postsPerWeek, preferredDays, preferredTimeHour,
-    autoScheduleNew, defaultIntent, defaultTone
+    autoScheduleNew, defaultIntent, defaultTone, last_ai_strategy
   } = req.body;
 
   const validDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
@@ -60,6 +60,7 @@ router.patch('/', requireAuth, async (req, res) => {
       if (autoScheduleNew !== undefined) updates.auto_schedule_new = autoScheduleNew ? 1 : 0;
       if (defaultIntent !== undefined) updates.default_intent = defaultIntent;
       if (defaultTone !== undefined) updates.default_tone = defaultTone;
+      if (last_ai_strategy !== undefined) updates.last_ai_strategy = last_ai_strategy;
 
       const { data, error } = await sb.from('user_settings')
         .update(updates)
@@ -87,13 +88,14 @@ router.patch('/', requireAuth, async (req, res) => {
           auto_schedule_new   = COALESCE(?, auto_schedule_new),
           default_intent      = COALESCE(?, default_intent),
           default_tone        = COALESCE(?, default_tone),
+          last_ai_strategy    = COALESCE(?, last_ai_strategy),
           updated_at          = ?
         WHERE user_id = ?
       `, [
         autoPostEnabled !== undefined ? (autoPostEnabled ? 1 : 0) : null,
         postsPerWeek ?? null, preferredDays ?? null, preferredTimeHour ?? null,
         autoScheduleNew !== undefined ? (autoScheduleNew ? 1 : 0) : null,
-        defaultIntent ?? null, defaultTone ?? null, now, req.user.id
+        defaultIntent ?? null, defaultTone ?? null, last_ai_strategy ?? null, now, req.user.id
       ]);
       updated = await get('SELECT * FROM user_settings WHERE user_id = ?', [req.user.id]);
     }

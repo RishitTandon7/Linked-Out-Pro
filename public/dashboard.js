@@ -433,6 +433,9 @@ async function generateStrategy() {
     // Save to local storage for persistence across reloads
     localStorage.setItem('lo_strategy_data', JSON.stringify(data));
     
+    // Also save to backend for cross-device syncing
+    api('/api/settings', 'PATCH', { last_ai_strategy: JSON.stringify(data) }).catch(e => console.warn('Failed to sync strategy to server', e));
+    
     if (finishLoader) finishLoader();
     
     // Slight delay to let the "complete" animation show before rendering
@@ -1497,10 +1500,25 @@ function escapeHtml(str) {
 }
 
 // Initialize AI Strategy UI
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initResumeDropZone();
   
-  // Load saved strategy if it exists
+  // Try to load from server settings first (for cross-device sync)
+  try {
+    const res = await fetch('/api/settings', { headers: { 'Authorization': `Bearer ${localStorage.getItem('lo_token')}` } });
+    if (res.ok) {
+      const { settings } = await res.json();
+      if (settings && settings.last_ai_strategy) {
+        localStorage.setItem('lo_strategy_data', settings.last_ai_strategy);
+        renderStrategy(JSON.parse(settings.last_ai_strategy));
+        return; // Success, skip local storage fallback
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to fetch server settings for strategy", e);
+  }
+  
+  // Fallback to local storage if network is down or empty
   const savedStrategy = localStorage.getItem('lo_strategy_data');
   if (savedStrategy) {
     try {

@@ -141,10 +141,14 @@ if (IS_SUPABASE) {
         auto_schedule_new    INTEGER DEFAULT 1,
         default_intent       TEXT DEFAULT 'achievement',
         default_tone         TEXT DEFAULT 'professional',
+        last_ai_strategy     TEXT,
         updated_at           INTEGER DEFAULT (unixepoch()),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+    
+    // Safe migration: add column if it doesn't exist yet (for existing DBs)
+    await run(`ALTER TABLE user_settings ADD COLUMN last_ai_strategy TEXT`).catch(() => {});
 
     console.log('✅ Database schema ready');
   }
