@@ -25,7 +25,7 @@ function requireAuth(req, res, next) {
 
 function createToken(user) {
   return jwt.sign(
-    { id: user.id, linkedinId: user.linkedin_id, name: user.name, avatarUrl: user.avatar_url },
+    { id: user.id, linkedinId: user.linkedin_id, name: user.name, avatarUrl: user.avatar_url, email: user.email },
     JWT_SECRET,
     { expiresIn: '30d' }
   );

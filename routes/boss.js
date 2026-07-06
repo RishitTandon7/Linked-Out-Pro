@@ -9,9 +9,25 @@ const router = express.Router();
 const OWNER_EMAIL = 'rishit.tandon.7@gmail.com';
 
 // ---- Owner Guard Middleware ----
-function requireOwner(req, res, next) {
+async function requireOwner(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-  if (req.user.email !== OWNER_EMAIL) {
+  
+  let email = req.user.email;
+  if (!email && req.user.id) {
+    try {
+      if (db.IS_SUPABASE) {
+        const { data } = await db.supabase.from('users').select('email').eq('id', req.user.id).single();
+        email = data?.email;
+      } else {
+        const row = await db.get('SELECT email FROM users WHERE id = ?', [req.user.id]);
+        email = row?.email;
+      }
+    } catch (e) {
+      console.error('requireOwner DB error:', e.message);
+    }
+  }
+
+  if (email !== OWNER_EMAIL) {
     return res.status(403).json({ error: 'Access denied. Owner only.' });
   }
   next();
