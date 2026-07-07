@@ -276,19 +276,63 @@ async function loadUser() {
         const el = document.getElementById(id);
         if (el) el.innerHTML = `<img src="${res.user.avatar_url}" alt="${res.user.name}" />`;
       });
-      // Also update LinkedIn preview card avatar
+      // Also update LinkedIn preview card avatar — preserve the hint badge
       const lkA = document.getElementById('lkAvatar');
-      if (lkA) lkA.innerHTML = `<img src="${res.user.avatar_url}" alt="${res.user.name}" />`;
+      if (lkA) {
+        // Keep the hint badge, insert the profile img before it
+        const hint = lkA.querySelector('.lk-avatar-hint');
+        const img = document.createElement('img');
+        img.src = res.user.avatar_url;
+        img.alt = res.user.name;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
+        lkA.insertBefore(img, hint || null);
+      }
+      // Populate LinkedIn viewer profile card
+      const liAvatar = document.getElementById('liProfileAvatar');
+      if (liAvatar) liAvatar.innerHTML = `<img src="${res.user.avatar_url}" alt="${res.user.name}" />`;
     }
     const lkN = document.getElementById('lkName');
     if (lkN) lkN.textContent = res.user.name;
+    // Update LinkedIn viewer name
+    const liName = document.getElementById('liProfileName');
+    if (liName) liName.textContent = res.user.name;
   } catch (e) { 
     console.error('Failed to load user:', e);
     window.location.href = '/'; 
   }
 }
 
-// ---- Load Stats ----
+// ---- LinkedIn In-App View ----
+let _liViewerOpen = false;
+
+function toggleLinkedInView() {
+  const overlay = document.getElementById('linkedinViewerOverlay');
+  if (!overlay) return;
+
+  if (_liViewerOpen) {
+    // Close — slide out
+    overlay.classList.add('li-viewer-hidden');
+    _liViewerOpen = false;
+  } else {
+    // Open — slide in
+    overlay.classList.remove('li-viewer-hidden');
+    _liViewerOpen = true;
+    // LinkedIn blocks all iframes (X-Frame-Options: SAMEORIGIN)
+    // So we show our nicely styled blocker UI immediately
+    const blocker = document.getElementById('liViewerBlocker');
+    if (blocker) blocker.classList.add('visible');
+  }
+}
+
+function openLinkedInExternal() {
+  window.open('https://www.linkedin.com/in/me', '_blank', 'noopener,noreferrer');
+}
+
+function openLinkedInFeed() {
+  window.open('https://www.linkedin.com/feed/', '_blank', 'noopener,noreferrer');
+}
+
+
 async function loadStats() {
   try {
     const data = await api('/api/posts/stats/overview');
