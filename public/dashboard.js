@@ -287,15 +287,9 @@ async function loadUser() {
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
         lkA.insertBefore(img, hint || null);
       }
-      // Populate LinkedIn viewer profile card
-      const liAvatar = document.getElementById('liProfileAvatar');
-      if (liAvatar) liAvatar.innerHTML = `<img src="${res.user.avatar_url}" alt="${res.user.name}" />`;
     }
     const lkN = document.getElementById('lkName');
     if (lkN) lkN.textContent = res.user.name;
-    // Update LinkedIn viewer name
-    const liName = document.getElementById('liProfileName');
-    if (liName) liName.textContent = res.user.name;
   } catch (e) { 
     console.error('Failed to load user:', e);
     window.location.href = '/'; 
@@ -313,14 +307,19 @@ function toggleLinkedInView() {
     // Close — slide out
     overlay.classList.add('li-viewer-hidden');
     _liViewerOpen = false;
+    setTimeout(() => {
+      const iframe = document.getElementById('linkedinIframe');
+      if (iframe) iframe.src = 'about:blank';
+    }, 400);
   } else {
     // Open — slide in
     overlay.classList.remove('li-viewer-hidden');
     _liViewerOpen = true;
-    // LinkedIn blocks all iframes (X-Frame-Options: SAMEORIGIN)
-    // So we show our nicely styled blocker UI immediately
-    const blocker = document.getElementById('liViewerBlocker');
-    if (blocker) blocker.classList.add('visible');
+    
+    const iframe = document.getElementById('linkedinIframe');
+    if (iframe) {
+      iframe.src = 'https://www.linkedin.com/feed/';
+    }
   }
 }
 

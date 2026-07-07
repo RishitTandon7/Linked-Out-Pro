@@ -1273,27 +1273,7 @@
     </div>
   </div>
   <div class="li-viewer-frame-wrap">
-    <div class="li-viewer-blocker visible" id="liViewerBlocker">
-      <div class="li-viewer-profile-card">
-        <div class="li-profile-avatar-wrap">
-          <div class="li-profile-avatar" id="liProfileAvatar"></div>
-          <div class="li-profile-avatar-ring"></div>
-        </div>
-        <div class="li-profile-name" id="liProfileName">Your Profile</div>
-        <div class="li-profile-tagline">Ready to open on LinkedIn</div>
-        <div class="li-profile-actions">
-          <button class="li-open-btn" onclick="openLinkedInExternal()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2" fill="currentColor"/></svg>
-            Open LinkedIn
-          </button>
-          <button class="li-feed-btn" onclick="openLinkedInFeed()">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            LinkedIn Feed
-          </button>
-        </div>
-        <p class="li-profile-note">LinkedIn cannot be embedded — opens in a new tab</p>
-      </div>
-    </div>
+    <iframe id="linkedinIframe" src="about:blank" class="li-viewer-iframe" title="LinkedIn Profile"></iframe>
   </div>
 </div>
 
