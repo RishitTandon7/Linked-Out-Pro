@@ -281,6 +281,91 @@ html, body {
 
 .lk-media img { width: 100%; max-height: 500px; object-fit: cover; display: block; }
 
+/* LinkedIn Gallery View Grid Layouts */
+.lk-gallery {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+  position: relative;
+}
+
+.lk-gallery-2 {
+  grid-template-columns: 1fr 1fr;
+  height: 280px;
+}
+
+.lk-gallery-3 {
+  grid-template-columns: 1.5fr 1fr;
+  height: 320px;
+}
+.lk-gallery-3-right {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  height: 100%;
+}
+
+.lk-gallery-4 {
+  grid-template-rows: 1.5fr 1fr;
+  height: 360px;
+}
+.lk-gallery-4-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  height: 100%;
+}
+
+.lk-gallery-5 {
+  grid-template-rows: 1fr 1fr;
+  height: 360px;
+}
+.lk-gallery-5-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  height: 100%;
+}
+.lk-gallery-5-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  height: 100%;
+}
+
+.lk-gallery-item {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.lk-gallery-item img, .lk-gallery-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Overlay for 5+ images */
+.lk-gallery-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: inherit;
+  pointer-events: none;
+}
+
 .lk-engagement { padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.08); }
 .lk-counts { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .lk-actions { display: flex; justify-content: space-between; }

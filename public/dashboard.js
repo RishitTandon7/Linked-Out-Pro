@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.7.2';
+const PAGE_VERSION = '1.7.3';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -1029,6 +1029,24 @@ function displayPost(text, hashtags, serverImages = []) {
     });
   }
 
+  // Helper function to build correct media element (img or video)
+  function createMediaElement(file) {
+    if (file.isVideo) {
+      const vid = document.createElement('video');
+      vid.src = file.url;
+      vid.muted = true;
+      vid.playsInline = true;
+      vid.loop = true;
+      vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      return vid;
+    } else {
+      const img = document.createElement('img');
+      img.src = file.url;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      return img;
+    }
+  }
+
   if (previewFiles.length === 1) {
     const { url, isVideo } = previewFiles[0];
     if (isVideo) {
@@ -1041,20 +1059,86 @@ function displayPost(text, hashtags, serverImages = []) {
       img.src = url;
       preview.appendChild(img);
     }
-  } else if (previewFiles.length > 1) {
-    preview.classList.add('grid2');
-    previewFiles.slice(0, 4).forEach(({ url, isVideo }) => {
-      if (isVideo) {
-        const vid = document.createElement('video');
-        vid.src = url; vid.muted = true;
-        vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-        preview.appendChild(vid);
-      } else {
-        const img = document.createElement('img');
-        img.src = url;
-        preview.appendChild(img);
-      }
+  } else if (previewFiles.length === 2) {
+    preview.className = 'lk-media lk-gallery lk-gallery-2';
+    previewFiles.forEach(file => {
+      const item = document.createElement('div');
+      item.className = 'lk-gallery-item';
+      item.appendChild(createMediaElement(file));
+      preview.appendChild(item);
     });
+  } else if (previewFiles.length === 3) {
+    preview.className = 'lk-media lk-gallery lk-gallery-3';
+    
+    // Left large item
+    const leftItem = document.createElement('div');
+    leftItem.className = 'lk-gallery-item';
+    leftItem.appendChild(createMediaElement(previewFiles[0]));
+    preview.appendChild(leftItem);
+    
+    // Right stacked items
+    const rightCol = document.createElement('div');
+    rightCol.className = 'lk-gallery-3-right';
+    previewFiles.slice(1, 3).forEach(file => {
+      const item = document.createElement('div');
+      item.className = 'lk-gallery-item';
+      item.appendChild(createMediaElement(file));
+      rightCol.appendChild(item);
+    });
+    preview.appendChild(rightCol);
+  } else if (previewFiles.length === 4) {
+    preview.className = 'lk-media lk-gallery lk-gallery-4';
+    
+    // Top full-width item
+    const topItem = document.createElement('div');
+    topItem.className = 'lk-gallery-item';
+    topItem.appendChild(createMediaElement(previewFiles[0]));
+    preview.appendChild(topItem);
+    
+    // Bottom 3 split items
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'lk-gallery-4-bottom';
+    previewFiles.slice(1, 4).forEach(file => {
+      const item = document.createElement('div');
+      item.className = 'lk-gallery-item';
+      item.appendChild(createMediaElement(file));
+      bottomRow.appendChild(item);
+    });
+    preview.appendChild(bottomRow);
+  } else if (previewFiles.length >= 5) {
+    preview.className = 'lk-media lk-gallery lk-gallery-5';
+    
+    // Top 2 split items
+    const topRow = document.createElement('div');
+    topRow.className = 'lk-gallery-5-top';
+    previewFiles.slice(0, 2).forEach(file => {
+      const item = document.createElement('div');
+      item.className = 'lk-gallery-item';
+      item.appendChild(createMediaElement(file));
+      topRow.appendChild(item);
+    });
+    preview.appendChild(topRow);
+    
+    // Bottom 3 split items
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'lk-gallery-5-bottom';
+    
+    previewFiles.slice(2, 5).forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'lk-gallery-item';
+      item.appendChild(createMediaElement(file));
+      
+      // If there are more than 5 images, overlay on the last (5th) thumbnail
+      if (idx === 2 && previewFiles.length > 5) {
+        const overlay = document.createElement('div');
+        overlay.className = 'lk-gallery-overlay';
+        overlay.textContent = `+${previewFiles.length - 4}`;
+        item.appendChild(overlay);
+      }
+      
+      bottomRow.appendChild(item);
+    });
+    preview.appendChild(bottomRow);
   }
 
   const actions = document.getElementById('previewActions');
