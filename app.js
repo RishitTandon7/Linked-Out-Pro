@@ -180,8 +180,8 @@ async function generatePost() {
         ]
       }],
       generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 800
+        temperature: 0.85,
+        maxOutputTokens: 4096
       }
     };
 

@@ -290,7 +290,7 @@ HOOK SCORE:
 
   const body = {
     contents: [{ parts: [{ text: promptWithVideo }, ...imageParts] }],
-    generationConfig: { temperature: 0.95, maxOutputTokens: 4096 }
+    generationConfig: { temperature: 0.85, maxOutputTokens: 4096 }
   };
 
   const response = await callGemini(body);
