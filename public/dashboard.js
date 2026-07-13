@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.7.4';
+const PAGE_VERSION = '1.7.5';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -739,6 +739,7 @@ function setMode(mode) {
   currentMode  = mode;
   selectedFiles = [];
   renderPreviewStrip();
+  displayPost(currentPostText || '', currentHashtags || '');
   document.getElementById('singleBtn').classList.toggle('active', mode === 'single');
   document.getElementById('eventBtn').classList.toggle('active', mode !== 'single');
 
@@ -775,9 +776,15 @@ function addFiles(files) {
   selectedFiles = [...selectedFiles, ...files].slice(0, 10);
   renderPreviewStrip();
   updateForgeButton();
+  displayPost(currentPostText || '', currentHashtags || '');
 }
 
-function removeFile(idx) { selectedFiles.splice(idx, 1); renderPreviewStrip(); updateForgeButton(); }
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  renderPreviewStrip();
+  updateForgeButton();
+  displayPost(currentPostText || '', currentHashtags || '');
+}
 
 // ---- Update forge button + banner to reflect current mode & file count ----
 function updateForgeButton() {

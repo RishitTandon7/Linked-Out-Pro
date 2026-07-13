@@ -221,18 +221,16 @@ html, body {
 
 .preview-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .preview-thumb { position: relative; width: 80px; height: 80px; border-radius: var(--radius-md); overflow: visible; border: 1px solid var(--border); }
-.preview-thumb:hover .edit-thumb,
-.preview-thumb:hover .move-thumb-left,
-.preview-thumb:hover .move-thumb-right { opacity: 1; }
 .preview-thumb img, .preview-thumb video { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .remove-thumb { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.15); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); z-index: 12; }
 .remove-thumb:hover { background: #ef4444; }
-.edit-thumb { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,119,181,0.9); color: white; border: none; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); z-index: 10; }
+.edit-thumb { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,119,181,0.9); color: white; border: none; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 1; transition: var(--transition); z-index: 10; }
 .edit-thumb:hover { background: var(--primary-hover); transform: scale(1.1); }
-.move-thumb-left, .move-thumb-right { position: absolute; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.15); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); z-index: 10; }
+.move-thumb-left, .move-thumb-right { position: absolute; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.15); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 1; transition: var(--transition); z-index: 10; }
 .move-thumb-left { left: 4px; }
 .move-thumb-right { left: 30px; }
 .move-thumb-left:hover, .move-thumb-right:hover { background: #0a66c2; transform: scale(1.1); }
+
 
 
 /* Generic Inputs */
@@ -353,6 +351,7 @@ html, body {
   height: 100%;
   object-fit: cover;
   display: block;
+  pointer-events: none;
 }
 
 /* Overlay for 5+ images */
