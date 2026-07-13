@@ -19,6 +19,7 @@ const { generateLinkedInPost } = require('../services/gemini');
     console.log("\n--- RESULT ---");
     console.log("POST TEXT:\n", result.postText);
     console.log("\nHASHTAGS:\n", result.hashtags);
+    console.log("\nHOOK SCORE / ANALYSIS:\n", result.analysis);
   } catch (err) {
     console.error("Test failed:", err.message);
   }

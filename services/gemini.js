@@ -109,18 +109,20 @@ function fileToGeminiPart(filePath, mimetype) {
 }
 
 // ---- Intent / Tone Maps ----
-const intentMap = {
-  achievement:  'Achievement (won award, completed milestone, certification)',
-  announcement: 'Announcement (new role, new project, product launch)',
-  storytelling: 'Storytelling (journey, lesson learned, personal experience)',
-  motivation:   'Motivation (insight, advice, encouragement)',
-  showcase:     'Product / Work Showcase'
-};
 const toneMap = {
-  professional: 'Professional, confident, polished',
-  casual:       'Casual and conversational, yet smart',
-  bold:         'Bold, direct, high-energy',
-  humble:       'Humble, grateful, grounded'
+  professional: 'Professional + Authoritative',
+  casual: 'Casual + Conversational',
+  bold: 'Bold + Provocative',
+  humble: 'Humble + Reflective',
+  inspirational: 'Inspirational + Motivational'
+};
+
+const intentMap = {
+  achievement: 'Achievement with Insight',
+  announcement: 'Announcement with Story',
+  storytelling: 'Storytelling + Lesson',
+  motivation: 'Motivation + Challenge',
+  showcase: 'Showcase with Proof'
 };
 
 /**
@@ -129,60 +131,148 @@ const toneMap = {
  */
 async function generateLinkedInPost(mediaFiles, context, intent, tone, currentDate) {
   const today = currentDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const prompt = `You are an expert LinkedIn content creator and personal branding strategist.
-
-Today's date is: ${today}.
-
-${
-  mediaFiles.length === 0
+  
+  const imageAnalysisInstruction = mediaFiles.length === 0
     ? 'Generate a post based solely on the context provided below.'
     : mediaFiles.length === 1 && mediaFiles[0]?.mimetype?.startsWith('video/')
       ? 'The user has shared a video. You cannot see the video directly, but craft a post for sharing this video on LinkedIn.'
       : mediaFiles.length === 1
         ? 'Analyze the provided image carefully (such as a certificate, document, award, or photo) and use it as the basis for the post.'
-        : `Analyze all ${mediaFiles.filter(f => !f.mimetype?.startsWith('video/')).length} provided event/related photos carefully as a set.`
-}${context ? `\n\nAdditional context from the user: "${context}"` : ''}
+        : `Analyze all ${mediaFiles.filter(f => !f.mimetype?.startsWith('video/')).length} provided event/related photos carefully as a set.`;
 
-Create a complete, full-length LinkedIn post with these specifications:
-- Intent: ${intentMap[intent] || intentMap.achievement}
-- Tone: ${toneMap[tone] || toneMap.professional}
-- Start with a strong, scroll-stopping hook (first line must grab attention immediately)
-- Professional yet human — no corporate-speak
-- Short paragraphs (2-4 sentences per paragraph), with a blank line between each
-- Write the COMPLETE post — do not cut it short. Aim for 3-5 paragraphs
-- 2-4 relevant emojis placed naturally (not stacked at the end)
-- Adds real value: include the full story, lesson, or insight — do not summarise or truncate
-- End with a clear call-to-action or reflection question to drive engagement
-- NEVER use: "I am happy to share", "Excited to announce", "Thrilled to", or similar clichés
-- Do NOT include hashtags inside the post body itself
+  const toneString = toneMap[tone] || 'Authentic + Direct';
+  const intentString = intentMap[intent] || 'Achievement with Insight';
 
-DATES AND Retrospectives / Throwbacks:
-1. Look closely for any dates, issue dates, graduation/completion years, or timeframe indicators printed on the uploaded image(s) (especially certificates, credentials, or diplomas).
-2. Compare any detected dates (or timeframe/dates mentioned in the user's text context) to Today's date (${today}).
-3. If the achievement, certificate, or milestone date is in the past (e.g., from several months or years ago), structure the post as a retrospective reflection focusing on growth and what stuck.
-4. For Certificates & Credentials, use hooks like:
-   - "Back in [Year], this changed how I think about [Topic]..."
-   - "[Time period] later, here's what actually stuck..."
-   - "[Year] taught me something I keep coming back to..."
-5. For Hackathons, Competitions & Build Events, use hooks like:
-   - "Back in [Year], building [Project] in 48 hours taught me..." (Only mention the project/product if the user explicitly provided it or if it is clearly visible in the image. Otherwise, focus on the building experience/hackathon theme itself).
-   - "[Time period] after building at [Hackathon], here's what actually stuck about shipping fast..."
-   - "The [Hackathon] in [Year] is where I first learned that [specific lesson] — and I haven't shipped the same way since."
-6. No Hallucinated Projects: Do not mention or hallucinate a specific project name if the user hasn't explicitly mentioned it in their context/input and it is not clearly readable/visible on the image.
-7. Fallback Behavior: If no date can be reliably detected from the image or context, default to a standard post without retrospective/throwback framing.
-8. Acknowledge that the credential/achievement was obtained in the past, sharing what you've learned since then, how you've applied the knowledge, or the long-term impact of that milestone. Avoid exact anniversary wording like "today".
-9. If the certificate is brand new (e.g. dated this month/recently) or contains no date indicating it is old, frame it as a recent achievement.
+  const prompt = `You are an expert LinkedIn viral content strategist and personal branding specialist.
+You don't just write posts — you engineer content that stops scrolls, triggers emotions, 
+and drives massive engagement.
 
-OUTPUT — use EXACTLY this format, nothing else:
+Today's date is: ${today}
+
+${imageAnalysisInstruction}
+${context ? `\nAdditional context from the user: "${context}"` : ''}
+
+---
+
+CORE MISSION:
+Write a LinkedIn post so compelling that it gets shared, saved, and commented on at scale.
+Every single line must earn its place. Cut anything that doesn't serve the hook, the story, 
+or the payoff.
+
+---
+
+VIRAL ARCHITECTURE — structure the post exactly like this:
+
+LINE 1 — THE HOOK (most important line you will write):
+- Must create a pattern interrupt — say something unexpected, counterintuitive, or bold
+- Use one of these proven hook formulas:
+  → Contradiction: "Everyone told me [X]. They were wrong."
+  → Curiosity gap: "I did [X] for [time period]. Here's what nobody tells you."
+  → Vulnerable truth: "I failed at [X]. Here's exactly what happened."
+  → Hot take: "[Widely held belief] is actually holding you back."
+  → Numbers: "[Specific number] lessons from [experience] that changed how I work."
+  → Confession: "I used to think [X]. Then [Y] happened."
+- Never open with "I", "We", your name, or the company name
+- Never use a question as your hook (questions are weak openers on LinkedIn)
+
+LINE 2 — THE PULL (keep them reading):
+- One short sentence (under 10 words) that deepens the curiosity from line 1
+- This is what shows in the "...see more" preview — make it impossible to ignore
+
+PARAGRAPH 2 — THE STORY (make them feel it):
+- Set the scene. Specific details beat vague claims every time.
+- Use "I" not "we" — personal stories outperform team stories on LinkedIn
+- Include one moment of tension, struggle, or surprise
+- 2–3 sentences max
+
+PARAGRAPH 3 — THE INSIGHT (the real value):
+- The lesson, realization, or shift in thinking
+- Be specific and non-obvious — avoid lessons anyone could have predicted
+- This is what people screenshot and share
+- 2–3 sentences
+
+PARAGRAPH 4 — THE PROOF / EXPAND (optional but powerful):
+- Back the insight with a result, stat, or follow-up observation
+- Or zoom out: why does this matter beyond just you?
+- 2–3 sentences
+
+FINAL LINE — THE CTA (engineered for comments):
+- Do NOT ask "what do you think?" — it's weak and overused
+- Ask a question that creates a DIVISION of opinion, or invites a one-word/one-sentence answer
+- Examples of strong CTAs:
+  → "Which matters more to you — speed or perfection? Drop your answer below."
+  → "Has anyone else experienced this, or was it just me?"
+  → "What's the one thing you'd go back and tell yourself before starting?"
+  → "Tag someone who needs to hear this today."
+
+---
+
+PSYCHOLOGICAL LEVERS — embed at least 2 of these:
+- FOMO: imply the reader is missing something by not knowing this
+- Relatability: say the thing everyone feels but nobody says out loud
+- Specificity: use exact numbers, dates, durations — vague claims get ignored
+- Surprise: subvert what the reader expects to hear
+- Stakes: make clear why this actually matters
+
+---
+
+FORMAT RULES:
+- Every paragraph separated by a blank line (LinkedIn line-break formatting)
+- Short paragraphs: 1–3 sentences each. Never write a wall of text.
+- Emojis: 1–3 max, placed where they add emphasis — never decorative, never at the end in a dump
+- Tone: ${toneString}
+- Intent: ${intentString}
+- Hashtags: NEVER inside the post body — output separately
+
+BANNED PHRASES — instant rejection, never use:
+- "I am happy/excited/thrilled/proud to share/announce"
+- "In today's world / In today's fast-paced world"
+- "Game-changer / Synergy / Leverage / Circle back"
+- "I wanted to share this because..."
+- "Let that sink in." (overused to death)
+- Any variation of the above
+
+---
+
+RETROSPECTIVE / THROWBACK LOGIC:
+
+STEP 1 — Detect any dates from the image or user context.
+STEP 2 — Compare to ${today}.
+STEP 3 — If the achievement is MORE THAN 2 MONTHS old → retrospective framing.
+          If recent or no date detected → standard framing.
+
+RETROSPECTIVE HOOKS (use only if applicable):
+- "Back in [Year], I made a decision that [consequence]..."
+- "[X years] later, here's what I wish I'd known going in..."
+- "This [certificate/win/project] is from [Year]. Here's what it actually taught me."
+
+NO HALLUCINATION RULE — CRITICAL:
+Never mention a specific project, product, or company name unless:
+(a) the user explicitly named it in their context, OR
+(b) it is clearly and unambiguously visible in the uploaded image.
+If neither, refer generically: "the project", "what we built", "our solution".
+
+---
+
+CONFLICT PRIORITY (if instructions conflict, follow this order):
+1. No hallucination rule
+2. Banned phrases
+3. Hook formula — never compromise on the hook
+4. Retrospective vs standard framing
+5. Format rules
+
+---
+
+OUTPUT — EXACTLY this format, nothing else:
 
 POST:
-[Your complete LinkedIn post here — write the full text, do not truncate]
+[Full LinkedIn post — complete, untruncated, engineered for virality]
 
 HASHTAGS:
-[#tag1 #tag2 #tag3 #tag4 #tag5]
+[#tag1 #tag2 #tag3 #tag4 #tag5 — mix of broad reach + niche relevance]
 
-ANALYSIS:
-[1-2 sentence image description]`;
+HOOK SCORE:
+[Rate the hook 1–10 and explain in one sentence why it will or won't stop a scroll]`;
 
   // Separate images (can be sent inline) from videos (not supported inline in REST API)
   const imageFiles = mediaFiles.filter(f => !f.mimetype || !f.mimetype.startsWith('video/'));
@@ -251,13 +341,20 @@ Return ONLY a valid JSON array (no extra text):
 
 // ---- Parser ----
 function parseGeminiResponse(raw) {
+  // Parse POST: section
   const postMatch     = raw.match(/POST:\s*([\s\S]*?)(?=HASHTAGS:|$)/i);
-  const hashMatch     = raw.match(/HASHTAGS:\s*([\s\S]*?)(?=ANALYSIS:|$)/i);
-  const analysisMatch = raw.match(/ANALYSIS:\s*([\s\S]*?)$/i);
+  // Parse HASHTAGS: section
+  const hashMatch     = raw.match(/HASHTAGS:\s*([\s\S]*?)(?=HOOK SCORE:|$)/i);
+  // Parse HOOK SCORE: section
+  const hookScoreMatch = raw.match(/HOOK SCORE:\s*([\s\S]*?)$/i);
 
   let postText = postMatch     ? postMatch[1].trim()     : raw.trim();
   let hashtags = hashMatch     ? hashMatch[1].trim()     : '';
-  let analysis = analysisMatch ? analysisMatch[1].trim() : '';
+  
+  // Parse HOOK SCORE: section -> map to analysis field
+  // Map HOOK SCORE to the analysis field to avoid database schema migrations.
+  // If HOOK SCORE is missing from response, default to null - don't throw.
+  let analysis = hookScoreMatch ? hookScoreMatch[1].trim() : null;
 
   if (hashtags && !hashtags.includes('#')) {
     hashtags = hashtags.split(/\s+/).map(h => `#${h}`).join(' ');
