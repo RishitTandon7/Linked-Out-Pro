@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.7.3';
+const PAGE_VERSION = '1.7.4';
 
 // ---- State ----
 let currentMode       = 'single';
@@ -808,6 +808,24 @@ function updateForgeButton() {
   }
 }
 
+function moveFile(idx, direction) {
+  if (direction === 'left' && idx > 0) {
+    const temp = selectedFiles[idx];
+    selectedFiles[idx] = selectedFiles[idx - 1];
+    selectedFiles[idx - 1] = temp;
+  } else if (direction === 'right' && idx < selectedFiles.length - 1) {
+    const temp = selectedFiles[idx];
+    selectedFiles[idx] = selectedFiles[idx + 1];
+    selectedFiles[idx + 1] = temp;
+  }
+  renderPreviewStrip();
+  updateForgeButton();
+  // Live sync with the preview card if a post is already displayed
+  if (currentPostText) {
+    displayPost(currentPostText, currentHashtags);
+  }
+}
+
 function renderPreviewStrip() {
   const strip = document.getElementById('previewStrip');
   strip.innerHTML = '';
@@ -820,8 +838,18 @@ function renderPreviewStrip() {
       ? `<video src="${url}" muted playsinline style="width:100%;height:100%;object-fit:cover;border-radius:6px;"></video>
          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;background:rgba(0,0,0,0.5);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`
       : `<img src="${url}" />`;
+      
+    const leftBtn = idx > 0
+      ? `<button class="move-thumb-left" onclick="moveFile(${idx}, 'left')" title="Move left">◀</button>`
+      : '';
+    const rightBtn = idx < selectedFiles.length - 1
+      ? `<button class="move-thumb-right" onclick="moveFile(${idx}, 'right')" title="Move right">▶</button>`
+      : '';
+
     div.innerHTML = `${mediaEl}
       <button class="remove-thumb" onclick="removeFile(${idx})">✕</button>
+      ${leftBtn}
+      ${rightBtn}
       ${!isVideo ? `<button class="edit-thumb" onclick="openImgEditor(${idx})" title="Edit image"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}`;
     strip.appendChild(div);
   });
@@ -1049,21 +1077,29 @@ function displayPost(text, hashtags, serverImages = []) {
 
   if (previewFiles.length === 1) {
     const { url, isVideo } = previewFiles[0];
+    const wrapper = document.createElement('div');
+    wrapper.className = 'lk-gallery-item';
+    wrapper.style.cursor = 'pointer';
+    wrapper.onclick = () => openLightbox(0, previewFiles);
+    
     if (isVideo) {
       const vid = document.createElement('video');
       vid.src = url; vid.controls = true; vid.muted = true;
       vid.style.cssText = 'width:100%;border-radius:8px;max-height:320px;';
-      preview.appendChild(vid);
+      wrapper.appendChild(vid);
     } else {
       const img = document.createElement('img');
       img.src = url;
-      preview.appendChild(img);
+      wrapper.appendChild(img);
     }
+    preview.appendChild(wrapper);
   } else if (previewFiles.length === 2) {
     preview.className = 'lk-media lk-gallery lk-gallery-2';
-    previewFiles.forEach(file => {
+    previewFiles.forEach((file, idx) => {
       const item = document.createElement('div');
       item.className = 'lk-gallery-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => openLightbox(idx, previewFiles);
       item.appendChild(createMediaElement(file));
       preview.appendChild(item);
     });
@@ -1073,15 +1109,19 @@ function displayPost(text, hashtags, serverImages = []) {
     // Left large item
     const leftItem = document.createElement('div');
     leftItem.className = 'lk-gallery-item';
+    leftItem.style.cursor = 'pointer';
+    leftItem.onclick = () => openLightbox(0, previewFiles);
     leftItem.appendChild(createMediaElement(previewFiles[0]));
     preview.appendChild(leftItem);
     
     // Right stacked items
     const rightCol = document.createElement('div');
     rightCol.className = 'lk-gallery-3-right';
-    previewFiles.slice(1, 3).forEach(file => {
+    previewFiles.slice(1, 3).forEach((file, idx) => {
       const item = document.createElement('div');
       item.className = 'lk-gallery-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => openLightbox(idx + 1, previewFiles);
       item.appendChild(createMediaElement(file));
       rightCol.appendChild(item);
     });
@@ -1092,15 +1132,19 @@ function displayPost(text, hashtags, serverImages = []) {
     // Top full-width item
     const topItem = document.createElement('div');
     topItem.className = 'lk-gallery-item';
+    topItem.style.cursor = 'pointer';
+    topItem.onclick = () => openLightbox(0, previewFiles);
     topItem.appendChild(createMediaElement(previewFiles[0]));
     preview.appendChild(topItem);
     
     // Bottom 3 split items
     const bottomRow = document.createElement('div');
     bottomRow.className = 'lk-gallery-4-bottom';
-    previewFiles.slice(1, 4).forEach(file => {
+    previewFiles.slice(1, 4).forEach((file, idx) => {
       const item = document.createElement('div');
       item.className = 'lk-gallery-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => openLightbox(idx + 1, previewFiles);
       item.appendChild(createMediaElement(file));
       bottomRow.appendChild(item);
     });
@@ -1111,9 +1155,11 @@ function displayPost(text, hashtags, serverImages = []) {
     // Top 2 split items
     const topRow = document.createElement('div');
     topRow.className = 'lk-gallery-5-top';
-    previewFiles.slice(0, 2).forEach(file => {
+    previewFiles.slice(0, 2).forEach((file, idx) => {
       const item = document.createElement('div');
       item.className = 'lk-gallery-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => openLightbox(idx, previewFiles);
       item.appendChild(createMediaElement(file));
       topRow.appendChild(item);
     });
@@ -1126,6 +1172,8 @@ function displayPost(text, hashtags, serverImages = []) {
     previewFiles.slice(2, 5).forEach((file, idx) => {
       const item = document.createElement('div');
       item.className = 'lk-gallery-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => openLightbox(idx + 2, previewFiles);
       item.appendChild(createMediaElement(file));
       
       // If there are more than 5 images, overlay on the last (5th) thumbnail
@@ -1656,3 +1704,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 });
+
+// ---- Lightbox Carousel ----
+let lightboxFiles = [];
+let lightboxIndex = 0;
+
+function openLightbox(idx, files) {
+  lightboxFiles = files || [];
+  lightboxIndex = idx || 0;
+  
+  const modal = document.getElementById('lightboxModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    renderLightboxItem();
+    // Add keyboard listener for arrows and escape
+    document.addEventListener('keydown', handleLightboxKeydown);
+  }
+}
+
+function closeLightbox() {
+  const modal = document.getElementById('lightboxModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.getElementById('lightboxContent').innerHTML = '';
+    document.removeEventListener('keydown', handleLightboxKeydown);
+  }
+}
+
+function renderLightboxItem() {
+  const content = document.getElementById('lightboxContent');
+  const caption = document.getElementById('lightboxCaption');
+  if (!content || lightboxFiles.length === 0) return;
+  
+  content.innerHTML = '';
+  const file = lightboxFiles[lightboxIndex];
+  
+  if (file.isVideo) {
+    const vid = document.createElement('video');
+    vid.src = file.url;
+    vid.controls = true;
+    vid.autoplay = true;
+    vid.style.cssText = 'max-width:100%; max-height:80vh; border-radius:8px;';
+    content.appendChild(vid);
+  } else {
+    const img = document.createElement('img');
+    img.src = file.url;
+    content.appendChild(img);
+  }
+  
+  if (caption) {
+    caption.textContent = `${lightboxIndex + 1} of ${lightboxFiles.length}`;
+  }
+  
+  // Show/hide arrows based on index and length
+  const leftArrow = document.querySelector('.lightbox-arrow.left');
+  const rightArrow = document.querySelector('.lightbox-arrow.right');
+  if (leftArrow) leftArrow.style.display = lightboxIndex > 0 ? 'flex' : 'none';
+  if (rightArrow) rightArrow.style.display = lightboxIndex < lightboxFiles.length - 1 ? 'flex' : 'none';
+}
+
+function lightboxNext() {
+  if (lightboxIndex < lightboxFiles.length - 1) {
+    lightboxIndex++;
+    renderLightboxItem();
+  }
+}
+
+function lightboxPrev() {
+  if (lightboxIndex > 0) {
+    lightboxIndex--;
+    renderLightboxItem();
+  }
+}
+
+function handleLightboxKeydown(e) {
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowRight') lightboxNext();
+  if (e.key === 'ArrowLeft') lightboxPrev();
+}

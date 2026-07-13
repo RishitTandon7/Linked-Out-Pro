@@ -220,13 +220,20 @@ html, body {
 .upload-text { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary); }
 
 .preview-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
-.preview-thumb { position: relative; width: 80px; height: 80px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
-.preview-thumb:hover .edit-thumb { opacity: 1; }
-.preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.remove-thumb { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.8); color: white; border: 1px solid var(--border); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); }
+.preview-thumb { position: relative; width: 80px; height: 80px; border-radius: var(--radius-md); overflow: visible; border: 1px solid var(--border); }
+.preview-thumb:hover .edit-thumb,
+.preview-thumb:hover .move-thumb-left,
+.preview-thumb:hover .move-thumb-right { opacity: 1; }
+.preview-thumb img, .preview-thumb video { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.remove-thumb { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.15); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); z-index: 12; }
 .remove-thumb:hover { background: #ef4444; }
-.edit-thumb { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,119,181,0.9); color: white; border: none; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); }
+.edit-thumb { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,119,181,0.9); color: white; border: none; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); z-index: 10; }
 .edit-thumb:hover { background: var(--primary-hover); transform: scale(1.1); }
+.move-thumb-left, .move-thumb-right { position: absolute; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.85); color: white; border: 1px solid rgba(255,255,255,0.15); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: var(--transition); z-index: 10; }
+.move-thumb-left { left: 4px; }
+.move-thumb-right { left: 30px; }
+.move-thumb-left:hover, .move-thumb-right:hover { background: #0a66c2; transform: scale(1.1); }
+
 
 /* Generic Inputs */
 .forge-textarea, .forge-input { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--white); font-family: var(--font); font-size: 0.95rem; font-weight: 500; padding: 16px 20px; border-radius: var(--radius-md); outline: none; transition: var(--transition); resize: none; background: rgba(255,255,255,0.02); color-scheme: dark; }

@@ -47,7 +47,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/boss',      bossRoutes);
 
 // ---- Version endpoint — used by the client to detect when a new deploy is live ----
-const APP_VERSION = '1.7.3';
+const APP_VERSION = '1.7.4';
 app.get('/api/version', (req, res) => {
   res.json({ version: APP_VERSION });
 });
