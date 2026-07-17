@@ -1,7 +1,7 @@
 // dashboard.js — LinkedOut Pro Dashboard Logic
 
 // ---- App Version (must match server.js APP_VERSION on latest deploy) ----
-const PAGE_VERSION = '1.7.6';
+const PAGE_VERSION = '1.8.0';
 
 // ---- State ----
 let currentMode       = 'single';

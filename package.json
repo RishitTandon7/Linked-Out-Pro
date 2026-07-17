@@ -1,6 +1,6 @@
 {
   "name": "linkedoutpro",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "description": "AI-powered LinkedIn post generator and scheduler",
   "main": "server.js",
   "scripts": {
