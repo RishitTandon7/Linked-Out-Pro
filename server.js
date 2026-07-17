@@ -5,6 +5,9 @@ const express      = require('express');
 const path         = require('path');
 const cookieParser = require('cookie-parser');
 const cors         = require('cors');
+const helmet       = require('helmet');
+const xss          = require('xss-clean');
+const rateLimit    = require('express-rate-limit');
 const { initSchema } = require('./database/db');
 const { startScheduler } = require('./services/scheduler');
 const { trackPageView }  = require('./middleware/traffic');
@@ -23,10 +26,27 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ---- Middleware ----
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false // Disabled for now to avoid breaking existing inline scripts/styles
+}));
+
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' })); // Body size limit to prevent huge payloads
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use(cookieParser());
+app.use(xss()); // Sanitize req.body, req.query, and req.params from XSS
+
+// Global Rate Limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+app.use('/api', globalLimiter); // Apply to all /api routes
+
 app.use(trackPageView); // 📊 Site traffic tracker
 
 // Serve static frontend files

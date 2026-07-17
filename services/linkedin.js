@@ -234,9 +234,10 @@ function sanitizeCommentary(text) {
   const placeholders = [];
   let withPlaceholders = text.replace(MENTION_RE, (match, name, link) => {
     const key = `\x00MENTION${placeholders.length}\x00`;
-    // If it's a URL, output just the URL so LinkedIn auto-converts it to a clickable preview/link
-    // If it's a URN, output the full @[Name](urn...) format for the API
-    const finalValue = link.startsWith('http') ? link : match;
+    // If it's a URL, we cannot do a native LinkedIn mention (requires URN).
+    // Instead of replacing the entire mention with just the URL (which LinkedIn shortens and hides the name),
+    // we output the plain text name. 
+    const finalValue = link.startsWith('http') ? `@${name}` : match;
     placeholders.push(finalValue);
     return key;
   });

@@ -180,10 +180,21 @@ async function publishSinglePost(post, errorsArr = []) {
     console.log(`📤 Publishing post ${post.id} with ${imageFiles.length}/${images.length} image(s)...`);
     console.log(`📏 post_text length going to LinkedIn: ${post.post_text?.length} chars`);
 
+    // ── AUTO-LINK PLAIN MENTIONS BEFORE PUBLISHING ──
+    const contacts = await all('SELECT * FROM mention_contacts WHERE user_id = ?', [post.user_id]);
+    let postText = post.post_text || '';
+    if (contacts && contacts.length > 0) {
+      contacts.forEach(c => {
+        const safeName = c.display_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const plainRe = new RegExp(`@${safeName}(?!\\[|\\()`, 'gi');
+        postText = postText.replace(plainRe, `@[${c.display_name}](${c.linkedin_id})`);
+      });
+    }
+
     const linkedinPostId = await publishPost(
       post.access_token,
       post.linkedin_id,
-      post.post_text,
+      postText,
       post.hashtags,
       imageFiles
     );

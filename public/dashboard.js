@@ -1927,12 +1927,24 @@ function renderMentionPreview(text) {
   }
 
   // Build rendered HTML: replace @[Name](url/urn) with blue chip, escape everything else
+  // Auto-link plain @Name if it matches a saved contact (before escaping)
+  if (typeof mentionContacts !== 'undefined' && Array.isArray(mentionContacts)) {
+    mentionContacts.forEach(c => {
+      const safeName = c.display_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match @Name not followed by [ or (
+      const plainRe = new RegExp(`@${safeName}(?!\\[|\\()`, 'gi');
+      text = text.replace(plainRe, `@[${c.display_name}](${c.linkedin_id})`);
+    });
+  }
+
   // Match @[Name] with an optional (URL) or (URN) immediately following it
   const MENTION_RE = /@\[([^\]]+)\](?:\(([^)]+)\))?/g;
-  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const rendered = escaped.replace(MENTION_RE, (_, name) =>
+  let escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  
+  let rendered = escaped.replace(MENTION_RE, (_, name) =>
     `<span class="lk-mention">@${name}</span>`
   );
+
   el.innerHTML = rendered.replace(/\n/g, '<br>');
 
   // Size the overlay to match the textarea's current rendered height

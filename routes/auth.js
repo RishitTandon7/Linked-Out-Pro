@@ -5,10 +5,17 @@ const axios   = require('axios');
 const { getAuthUrl, exchangeCodeForToken, getUserProfile } = require('../services/linkedin');
 const { createToken } = require('../middleware/auth');
 const db = require('../database/db');
-
-
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // limit each IP to 20 requests per windowMs for auth endpoints
+  message: { error: 'Too many authentication attempts, please try again later' }
+});
+
+router.use(authLimiter);
 
 // In-memory state store (good enough for single-instance; use Redis in production)
 const oauthStates = new Map();

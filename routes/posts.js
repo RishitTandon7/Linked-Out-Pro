@@ -8,8 +8,17 @@ const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { publishSinglePost } = require('../services/scheduler');
 const { notifyPostScheduled, notifyPostPublished } = require('../services/notifications');
 const { deleteImage } = require('../services/storage');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+const postLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per 15 minutes for posts
+  message: { error: 'Too many post requests from this IP, please try again later' }
+});
+
+router.use(postLimiter);
 
 // ---- Helpers ----
 async function getPosts(userId, status, limit = 50, offset = 0) {
@@ -264,6 +273,18 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     console.log(`   postText source : ${req.body?.postText !== undefined ? 'REQUEST BODY' : 'DB FALLBACK'}`);
     console.log(`   postText length : ${postText?.length} chars`);
     console.log(`   postText preview: ${postText?.slice(0, 80)}...`);
+
+    // ── AUTO-LINK PLAIN MENTIONS BEFORE PUBLISHING ──
+    const { all } = require('../database/db');
+    const contacts = await all('SELECT * FROM mention_contacts WHERE user_id = ?', [req.user.id]);
+    if (contacts && contacts.length > 0) {
+      contacts.forEach(c => {
+        const safeName = c.display_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match @Name not followed by [ or (
+        const plainRe = new RegExp(`@${safeName}(?!\\[|\\()`, 'gi');
+        postText = postText.replace(plainRe, `@[${c.display_name}](${c.linkedin_id})`);
+      });
+    }
 
     // ── IMAGES: fetch from Supabase storage ──
     const { IS_SUPABASE, supabase: sb } = require('../database/db');

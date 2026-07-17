@@ -10,8 +10,17 @@ const { sendPushToUser } = require('../services/notifications');
 const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 const { getNextPostingSlots } = require('../services/scheduler');
 const { uploadImage, deleteImage } = require('../services/storage');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30, // limit each IP to 30 requests per hour for AI generation
+  message: { error: 'Too many AI requests from this IP, please try again after an hour' }
+});
+
+router.use(aiLimiter);
 
 // ---- Multer storage config ----
 const os = require('os');
