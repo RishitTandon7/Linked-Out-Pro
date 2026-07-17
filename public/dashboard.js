@@ -2123,4 +2123,60 @@ async function deleteMentionContact(id) {
 document.addEventListener('DOMContentLoaded', () => {
   loadMentionContacts();
   initMentionListener();
+  setupUrlAutoParse();
 });
+
+// -- LinkedIn URL Auto-Parser --
+
+function parseLinkedInUrl(url) {
+  // Person profile: e.g., https://www.linkedin.com/in/jane-smith-54a954400/
+  const personMatch = url.match(/linkedin\.com\/in\/([a-zA-Z0-9\-]+)/i);
+  if (personMatch) {
+    const vanity = personMatch[1]; // e.g., "jane-smith-54a954400"
+    const parts = vanity.split('-');
+    let id = vanity;
+    let name = parts.filter(p => isNaN(p)).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    
+    if (parts.length > 1) {
+      const lastPart = parts[parts.length - 1];
+      // If the last part is numeric or alphanumeric and looks like a public suffix
+      if (/^[0-9a-zA-Z]+$/.test(lastPart) && (lastPart.length >= 6 || !isNaN(lastPart))) {
+        id = lastPart;
+        name = parts.slice(0, -1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      }
+    }
+    return { name, id };
+  }
+  
+  // Company profile: e.g., https://www.linkedin.com/company/google/
+  const orgMatch = url.match(/linkedin\.com\/company\/([a-zA-Z0-9\-]+)/i);
+  if (orgMatch) {
+    const vanity = orgMatch[1];
+    const name = vanity.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    return { name, id: vanity };
+  }
+  
+  return null;
+}
+
+function setupUrlAutoParse() {
+  const nameInput = document.getElementById('mentionNameInput');
+  const idInput   = document.getElementById('mentionIdInput');
+  if (!nameInput || !idInput) return;
+
+  const handleInput = (e) => {
+    const val = e.target.value.trim();
+    if (val.includes('linkedin.com')) {
+      const parsed = parseLinkedInUrl(val);
+      if (parsed) {
+        nameInput.value = parsed.name;
+        idInput.value   = parsed.id;
+        showToast('Parsed profile details automatically ✓');
+      }
+    }
+  };
+
+  nameInput.addEventListener('input', handleInput);
+  idInput.addEventListener('input', handleInput);
+}
+
