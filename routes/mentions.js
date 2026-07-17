@@ -67,7 +67,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { profileUrl, description } = req.body;
+    const { profileUrl, description, memberId } = req.body;
 
     if (!profileUrl || !profileUrl.includes('linkedin.com')) {
       return res.status(400).json({ error: 'A valid LinkedIn profile URL is required.' });
@@ -81,6 +81,7 @@ router.post('/', requireAuth, async (req, res) => {
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const desc = (description || '').trim();
+    const mId = (memberId || '').trim();
 
     if (IS_SUPABASE) {
       const { data, error } = await sb.from('mention_contacts').insert({
@@ -89,7 +90,7 @@ router.post('/', requireAuth, async (req, res) => {
         display_name: displayName,
         linkedin_id: profileUrl.trim(),
         description: desc,
-        avatar_url: null,
+        avatar_url: mId || null, // store memberId in avatar_url column
         created_at: now
       }).select().single();
       if (error) throw error;
@@ -98,7 +99,7 @@ router.post('/', requireAuth, async (req, res) => {
       await run(
         `INSERT INTO mention_contacts (id, user_id, display_name, linkedin_id, description, avatar_url, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, userId, displayName, profileUrl.trim(), desc, null, now]
+        [id, userId, displayName, profileUrl.trim(), desc, mId || null, now]
       );
       const contact = await get('SELECT * FROM mention_contacts WHERE id = ?', [id]);
       return res.json({ contact });

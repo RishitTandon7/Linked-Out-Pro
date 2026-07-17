@@ -1926,8 +1926,9 @@ function renderMentionPreview(text) {
     return;
   }
 
-  // Build rendered HTML: replace @[Name] with blue chip, escape everything else
-  const MENTION_RE = /@\[([^\]]+)\]/g;
+  // Build rendered HTML: replace @[Name](url/urn) with blue chip, escape everything else
+  // Match @[Name] with an optional (URL) or (URN) immediately following it
+  const MENTION_RE = /@\[([^\]]+)\](?:\(([^)]+)\))?/g;
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const rendered = escaped.replace(MENTION_RE, (_, name) =>
     `<span class="lk-mention">@${name}</span>`
@@ -2011,11 +2012,12 @@ function renderMentionDropdown(items) {
   dd.classList.add('open');
 }
 
-/** Insert @[Name] at the current cursor position, replacing the @query */
+/** Insert @[Name](url/urn) at the current cursor position, replacing the @query */
 function insertMention(contact) {
   const ta = document.getElementById('editPost');
   if (!ta) return;
-  const token = `@[${contact.display_name}]`;
+  // If contact.linkedin_id already is a urn, use it directly. Otherwise use the URL.
+  const token = `@[${contact.display_name}](${contact.linkedin_id})`;
   const before = ta.value.slice(0, mentionStartIdx);
   const after  = ta.value.slice(ta.selectionStart);
   ta.value = before + token + ' ' + after;

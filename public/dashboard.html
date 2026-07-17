@@ -1795,9 +1795,12 @@ window.addEventListener('resize', () => {
     <!-- Add new contact form -->
     <div class="mention-add-form">
       <input type="url" id="mentionUrlInput" placeholder="Paste LinkedIn profile URL — e.g. linkedin.com/in/jane-smith" autocomplete="off" />
-      <input type="text" id="mentionDescInput" placeholder="Description (optional — e.g. Software Engineer, Tech Lead)" autocomplete="off" style="margin-top: 8px;" />
-      <p class="mention-id-hint" style="line-height:1.6; margin-top: 6px;">
-        💡 Paste their LinkedIn profile URL. You can also specify an optional description/role to make them easier to identify.
+      <input type="text" id="mentionDescInput" placeholder="Description / Role (optional — e.g. Writer, CEO)" autocomplete="off" style="margin-top: 8px;" />
+      <input type="text" id="mentionIdInput" placeholder="Real LinkedIn Member ID (optional — for blue tagging)" autocomplete="off" style="margin-top: 8px;" />
+      <p class="mention-id-hint" style="line-height:1.6; margin-top: 8px;">
+        💡 <strong>How to make mentions turn blue on LinkedIn:</strong>
+        <br/>1. Paste their LinkedIn profile URL.
+        <br/>2. Find their numeric Member ID (Right-click profile → View Page Source → search for <code>memberId</code> or <code>urn:li:member:</code>) and paste it in the field above.
       </p>
       <button class="mention-add-btn" onclick="addMentionContact()">+ Add Contact</button>
     </div>
