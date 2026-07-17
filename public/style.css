@@ -926,8 +926,9 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
   overflow: hidden;
 }
 .mention-item-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.mention-item-name { font-size: 13px; font-weight: 600; color: #e2e2e6; }
-.mention-item-id   { font-size: 11px; color: rgba(226,226,230,0.4); margin-top: 1px; }
+.mention-item-name { font-size: 13.5px; font-weight: 600; color: #e2e2e6; }
+.mention-item-desc { font-size: 11.5px; color: rgba(0,119,181,0.8); margin-top: 1px; font-weight: 500; }
+
 
 /* Mention chip inside LinkedIn preview card */
 .lk-mention {

@@ -169,11 +169,15 @@ if (IS_SUPABASE) {
         user_id      TEXT NOT NULL,
         display_name TEXT NOT NULL,
         linkedin_id  TEXT NOT NULL,
+        description  TEXT DEFAULT '',
         avatar_url   TEXT,
         created_at   INTEGER DEFAULT (unixepoch()),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+    // Safe migration: add description column if upgrading from older schema
+    await run(`ALTER TABLE mention_contacts ADD COLUMN description TEXT DEFAULT ''`).catch(() => {});
+
 
     console.log('✅ Database schema ready');
   }

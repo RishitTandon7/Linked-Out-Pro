@@ -1980,11 +1980,12 @@ function renderMentionDropdown(items) {
       ? `<div class="mention-item-avatar"><img src="${contact.avatar_url}" alt="${initials}" onerror="this.parentElement.textContent='${initials}'"/></div>`
       : `<div class="mention-item-avatar">${initials}</div>`;
 
+    const descText = contact.description || (contact.linkedin_id.includes('/company/') ? 'Company Page' : 'LinkedIn Profile');
     div.innerHTML = `
       ${avatarHtml}
       <div>
         <div class="mention-item-name">${contact.display_name}</div>
-        <div class="mention-item-id">urn:li:person:${contact.linkedin_id}</div>
+        <div class="mention-item-desc">${descText}</div>
       </div>`;
 
     div.addEventListener('mousedown', (e) => {
@@ -2112,10 +2113,12 @@ function renderMentionContactsModal() {
     const avatar = `<div class="mention-item-avatar">${initials}</div>`;
     // Show the profile URL (stored in linkedin_id) as a clickable subtitle
     const urlDisplay = c.linkedin_id.replace(/^https?:\/\/(www\.)?linkedin\.com/i, 'linkedin.com').replace(/\/$/, '');
+    const descText = c.description ? `<div class="desc" style="font-size: 12.5px; color: #70b5f9; font-weight: 500; margin: 2px 0;">${c.description}</div>` : '';
     return `<div class="mention-contact-row">
       ${avatar}
       <div class="mention-contact-info">
         <div class="name">${c.display_name}</div>
+        ${descText}
         <div class="lid" title="${c.linkedin_id}">${urlDisplay}</div>
       </div>
       <button class="mention-delete-btn" onclick="deleteMentionContact('${c.id}')" title="Remove">&#x2715;</button>
@@ -2125,16 +2128,19 @@ function renderMentionContactsModal() {
 
 async function addMentionContact() {
   const urlInput = document.getElementById('mentionUrlInput');
+  const descInput = document.getElementById('mentionDescInput');
   const url = urlInput?.value?.trim();
+  const desc = descInput?.value?.trim() || '';
   if (!url || !url.includes('linkedin.com')) {
     showToast('Please paste a valid LinkedIn profile URL', 'error');
     return;
   }
   try {
-    const data = await api('/api/mentions', 'POST', { profileUrl: url });
+    const data = await api('/api/mentions', 'POST', { profileUrl: url, description: desc });
     mentionContacts.push(data.contact);
     mentionContacts.sort((a, b) => a.display_name.localeCompare(b.display_name));
     urlInput.value = '';
+    if (descInput) descInput.value = '';
     renderMentionContactsModal();
     showToast(`${data.contact.display_name} added to mention contacts ✓`);
   } catch (e) {
