@@ -1906,7 +1906,7 @@ async function loadMentionContacts() {
   }
 }
 
-/** Render @[Name](urn) tokens as blue chips in the lkRenderedText preview div */
+/** Render @[Name] tokens as blue chips in the lkRenderedText preview div */
 function renderMentionPreview(text) {
   const el = document.getElementById('lkRenderedText');
   if (!el) return;
@@ -1915,11 +1915,11 @@ function renderMentionPreview(text) {
     el.innerHTML = '';
     return;
   }
-  const MENTION_RE = /@\[([^\]]+)\]\((urn:li:\w+:[^)]+)\)/g;
-  // Escape HTML first, then re-apply the mention regex on escaped string
+  // Match @[Name] — simple format, no URN
+  const MENTION_RE = /@\[([^\]]+)\]/g;
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const rendered = escaped.replace(MENTION_RE, (match, name, urn) =>
-    `<span class="lk-mention" title="${urn}">@${name}</span>`
+  const rendered = escaped.replace(MENTION_RE, (match, name) =>
+    `<span class="lk-mention">@${name}</span>`
   );
   el.innerHTML = rendered.replace(/\n/g, '<br>');
   el.classList.remove('hidden');
@@ -1968,16 +1968,16 @@ function renderMentionDropdown(items) {
   dd.classList.add('open');
 }
 
-/** Insert @[Name](urn) at the current cursor position, replacing the @query */
+/** Insert @[Name] at the current cursor position, replacing the @query */
 function insertMention(contact) {
   const ta = document.getElementById('editPost');
   if (!ta) return;
-  const token = `@[${contact.display_name}](urn:li:person:${contact.linkedin_id})`;
+  const token = `@[${contact.display_name}]`;
   const before = ta.value.slice(0, mentionStartIdx);
   const after  = ta.value.slice(ta.selectionStart);
-  ta.value = before + token + after;
-  // Move cursor to after the inserted token
-  const newPos = mentionStartIdx + token.length;
+  ta.value = before + token + ' ' + after;
+  // Move cursor to after the inserted token + space
+  const newPos = mentionStartIdx + token.length + 1;
   ta.setSelectionRange(newPos, newPos);
   ta.focus();
   closeMentionDropdown();
@@ -2070,19 +2070,19 @@ function renderMentionContactsModal() {
   const list = document.getElementById('mentionContactsList');
   if (!list) return;
   if (mentionContacts.length === 0) {
-    list.innerHTML = '<div class="mention-empty">No contacts saved yet. Add one above.</div>';
+    list.innerHTML = '<div class="mention-empty">No contacts yet — paste a LinkedIn URL above to add one.</div>';
     return;
   }
   list.innerHTML = mentionContacts.map(c => {
     const initials = c.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    const avatar = c.avatar_url
-      ? `<div class="mention-item-avatar"><img src="${c.avatar_url}" alt="${initials}" onerror="this.parentElement.textContent='${initials}'"/></div>`
-      : `<div class="mention-item-avatar">${initials}</div>`;
+    const avatar = `<div class="mention-item-avatar">${initials}</div>`;
+    // Show the profile URL (stored in linkedin_id) as a clickable subtitle
+    const urlDisplay = c.linkedin_id.replace(/^https?:\/\/(www\.)?linkedin\.com/i, 'linkedin.com').replace(/\/$/, '');
     return `<div class="mention-contact-row">
       ${avatar}
       <div class="mention-contact-info">
         <div class="name">${c.display_name}</div>
-        <div class="lid">ID: ${c.linkedin_id}</div>
+        <div class="lid" title="${c.linkedin_id}">${urlDisplay}</div>
       </div>
       <button class="mention-delete-btn" onclick="deleteMentionContact('${c.id}')" title="Remove">&#x2715;</button>
     </div>`;
@@ -2090,19 +2090,19 @@ function renderMentionContactsModal() {
 }
 
 async function addMentionContact() {
-  const nameInput = document.getElementById('mentionNameInput');
-  const idInput   = document.getElementById('mentionIdInput');
-  const name = nameInput?.value?.trim();
-  const lid  = idInput?.value?.trim();
-  if (!name || !lid) { showToast('Please fill in both name and LinkedIn ID', 'error'); return; }
+  const urlInput = document.getElementById('mentionUrlInput');
+  const url = urlInput?.value?.trim();
+  if (!url || !url.includes('linkedin.com')) {
+    showToast('Please paste a valid LinkedIn profile URL', 'error');
+    return;
+  }
   try {
-    const data = await api('/api/mentions', 'POST', { displayName: name, linkedinId: lid });
+    const data = await api('/api/mentions', 'POST', { profileUrl: url });
     mentionContacts.push(data.contact);
     mentionContacts.sort((a, b) => a.display_name.localeCompare(b.display_name));
-    nameInput.value = '';
-    idInput.value   = '';
+    urlInput.value = '';
     renderMentionContactsModal();
-    showToast(`${name} added to your mention contacts ✓`);
+    showToast(`${data.contact.display_name} added to mention contacts ✓`);
   } catch (e) {
     showToast(e.message || 'Could not add contact', 'error');
   }
@@ -2123,60 +2123,4 @@ async function deleteMentionContact(id) {
 document.addEventListener('DOMContentLoaded', () => {
   loadMentionContacts();
   initMentionListener();
-  setupUrlAutoParse();
 });
-
-// -- LinkedIn URL Auto-Parser --
-
-function parseLinkedInUrl(url) {
-  // Person profile: e.g., https://www.linkedin.com/in/jane-smith-54a954400/
-  const personMatch = url.match(/linkedin\.com\/in\/([a-zA-Z0-9\-]+)/i);
-  if (personMatch) {
-    const vanity = personMatch[1]; // e.g., "jane-smith-54a954400"
-    const parts = vanity.split('-');
-    let id = vanity;
-    let name = parts.filter(p => isNaN(p)).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-    
-    if (parts.length > 1) {
-      const lastPart = parts[parts.length - 1];
-      // If the last part is numeric or alphanumeric and looks like a public suffix
-      if (/^[0-9a-zA-Z]+$/.test(lastPart) && (lastPart.length >= 6 || !isNaN(lastPart))) {
-        id = lastPart;
-        name = parts.slice(0, -1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-      }
-    }
-    return { name, id };
-  }
-  
-  // Company profile: e.g., https://www.linkedin.com/company/google/
-  const orgMatch = url.match(/linkedin\.com\/company\/([a-zA-Z0-9\-]+)/i);
-  if (orgMatch) {
-    const vanity = orgMatch[1];
-    const name = vanity.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-    return { name, id: vanity };
-  }
-  
-  return null;
-}
-
-function setupUrlAutoParse() {
-  const nameInput = document.getElementById('mentionNameInput');
-  const idInput   = document.getElementById('mentionIdInput');
-  if (!nameInput || !idInput) return;
-
-  const handleInput = (e) => {
-    const val = e.target.value.trim();
-    if (val.includes('linkedin.com')) {
-      const parsed = parseLinkedInUrl(val);
-      if (parsed) {
-        nameInput.value = parsed.name;
-        idInput.value   = parsed.id;
-        showToast('Parsed profile details automatically ✓');
-      }
-    }
-  };
-
-  nameInput.addEventListener('input', handleInput);
-  idInput.addEventListener('input', handleInput);
-}
-

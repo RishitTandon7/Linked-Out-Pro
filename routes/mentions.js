@@ -6,6 +6,38 @@ const { IS_SUPABASE, supabase: sb, run, get, all } = require('../database/db');
 
 const router = express.Router();
 
+/**
+ * Parse a LinkedIn profile or company URL into a clean display name.
+ * e.g. "https://www.linkedin.com/in/rishit-tandon-54a954400/" → "Rishit Tandon"
+ * e.g. "https://www.linkedin.com/company/openai/" → "Openai"
+ */
+function parseDisplayNameFromUrl(url) {
+  // Person profile: /in/<vanity-slug>/
+  const personMatch = url.match(/linkedin\.com\/in\/([a-zA-Z0-9\-]+)/i);
+  if (personMatch) {
+    const slug = personMatch[1]; // e.g. "rishit-tandon-54a954400"
+    const parts = slug.split('-');
+
+    // Drop trailing purely-numeric or long alphanumeric suffix (vanity collision suffix)
+    // e.g. "54a954400" or "4x7q" — anything ≥6 chars at the end that looks like an ID
+    const lastPart = parts[parts.length - 1];
+    const nameparts = (lastPart.length >= 6 || /^\d+$/.test(lastPart))
+      ? parts.slice(0, -1)
+      : parts;
+
+    return nameparts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || slug;
+  }
+
+  // Company page: /company/<slug>/
+  const companyMatch = url.match(/linkedin\.com\/company\/([a-zA-Z0-9\-]+)/i);
+  if (companyMatch) {
+    const slug = companyMatch[1];
+    return slug.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  }
+
+  return null;
+}
+
 // ---- GET /api/mentions — list saved mention contacts ----
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -31,21 +63,20 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// ---- POST /api/mentions — add a new mention contact ----
+// ---- POST /api/mentions — add a new mention contact from a LinkedIn URL ----
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { displayName, linkedinId, avatarUrl } = req.body;
+    const { profileUrl } = req.body;
 
-    if (!displayName || !linkedinId) {
-      return res.status(400).json({ error: 'displayName and linkedinId are required' });
+    if (!profileUrl || !profileUrl.includes('linkedin.com')) {
+      return res.status(400).json({ error: 'A valid LinkedIn profile URL is required.' });
     }
 
-    // Normalize: strip the full URN prefix if the user pasted it
-    const personId = linkedinId
-      .replace(/^urn:li:person:/i, '')
-      .replace(/^urn:li:organization:/i, '')
-      .trim();
+    const displayName = parseDisplayNameFromUrl(profileUrl.trim());
+    if (!displayName) {
+      return res.status(400).json({ error: 'Could not parse a name from that URL. Make sure it is a /in/ or /company/ LinkedIn URL.' });
+    }
 
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
@@ -54,9 +85,9 @@ router.post('/', requireAuth, async (req, res) => {
       const { data, error } = await sb.from('mention_contacts').insert({
         id,
         user_id: userId,
-        display_name: displayName.trim(),
-        linkedin_id: personId,
-        avatar_url: avatarUrl || null,
+        display_name: displayName,
+        linkedin_id: profileUrl.trim(), // store the full URL as the identifier
+        avatar_url: null,
         created_at: now
       }).select().single();
       if (error) throw error;
@@ -65,7 +96,7 @@ router.post('/', requireAuth, async (req, res) => {
       await run(
         `INSERT INTO mention_contacts (id, user_id, display_name, linkedin_id, avatar_url, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, userId, displayName.trim(), personId, avatarUrl || null, now]
+        [id, userId, displayName, profileUrl.trim(), null, now]
       );
       const contact = await get('SELECT * FROM mention_contacts WHERE id = ?', [id]);
       return res.json({ contact });

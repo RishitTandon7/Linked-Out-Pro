@@ -1794,18 +1794,14 @@ window.addEventListener('resize', () => {
 
     <!-- Add new contact form -->
     <div class="mention-add-form">
-      <input type="text" id="mentionNameInput" placeholder="Full name (e.g. Jane Smith)" />
-      <input type="text" id="mentionIdInput" placeholder="LinkedIn Person ID (e.g. ABC123xyz)" />
-      <p class="mention-id-hint" style="color: #e2e2e6; opacity: 0.85; line-height: 1.6;">
-        ⚠️ <strong>Note:</strong> Suffixes in profile URLs (like <code>54a954400</code>) are vanity URL codes and <strong>NOT</strong> the actual internal LinkedIn Person IDs. Using them will cause LinkedIn to reject the post.<br/>
-        💡 <strong>How to get the correct Person ID:</strong><br/>
-        1. Open their LinkedIn profile in a desktop browser.<br/>
-        2. Right-click and choose <strong>"View Page Source"</strong> (or press <code>Ctrl+U</code>).<br/>
-        3. Search (<code>Ctrl+F</code>) for <code>"memberId":</code> or <code>urn:li:member:</code>.<br/>
-        4. Copy the numeric code (e.g. <code>87263529</code>) and save it here.
+      <input type="url" id="mentionUrlInput" placeholder="Paste LinkedIn profile URL — e.g. linkedin.com/in/jane-smith" autocomplete="off" />
+      <p class="mention-id-hint" style="line-height:1.6;">
+        💡 Just paste their LinkedIn profile URL and we'll handle the rest automatically.
+        <br/>Works for both people (<code>/in/</code>) and companies (<code>/company/</code>).
       </p>
       <button class="mention-add-btn" onclick="addMentionContact()">+ Add Contact</button>
     </div>
+
 
     <!-- Saved contacts list -->
     <div class="mention-contacts-list" id="mentionContactsList">
