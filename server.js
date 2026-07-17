@@ -6,7 +6,6 @@ const path         = require('path');
 const cookieParser = require('cookie-parser');
 const cors         = require('cors');
 const helmet       = require('helmet');
-const xss          = require('xss-clean');
 const rateLimit    = require('express-rate-limit');
 const { initSchema } = require('./database/db');
 const { startScheduler } = require('./services/scheduler');
@@ -35,7 +34,6 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '5mb' })); // Body size limit to prevent huge payloads
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use(cookieParser());
-app.use(xss()); // Sanitize req.body, req.query, and req.params from XSS
 
 // Global Rate Limiting
 const globalLimiter = rateLimit({
