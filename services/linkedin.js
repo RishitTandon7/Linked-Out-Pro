@@ -229,24 +229,7 @@ async function uploadVideoToLinkedIn(accessToken, linkedinId, videoPath, mimetyp
 function sanitizeCommentary(text) {
   if (!text) return '';
 
-  // Step 1: Extract all @[Name](urn:li:...) or @[Name](http...) tokens so they survive sanitization
-  const MENTION_RE = /@\[([^\]]+)\]\(((?:urn:li:|https?:\/\/)[^\)]+)\)/g;
-  const placeholders = [];
-  let withPlaceholders = text.replace(MENTION_RE, (match, name, link) => {
-    const key = `\x00MENTION${placeholders.length}\x00`;
-    // If it's a URL, we cannot do a native LinkedIn mention (requires URN).
-    // Instead of replacing the entire mention with just the URL (which LinkedIn shortens and hides the name),
-    // we output the plain text name. 
-    const finalValue = link.startsWith('http') ? `@${name}` : match;
-    placeholders.push(finalValue);
-    return key;
-  });
-
-  // Step 2: Convert plain @[Name] tokens (no link) to plain @Name text
-  let processed = withPlaceholders.replace(/@\[([^\]]+)\]/g, (_, name) => `@${name}`);
-
-  // Step 3: Sanitize Rest.li special characters from the rest of the text
-  let sanitized = processed
+  return text
     .replace(/\(/g, ' - ')
     .replace(/\)/g, ' - ')
     .replace(/\[/g, '"')
@@ -255,11 +238,6 @@ function sanitizeCommentary(text) {
     .replace(/\}/g, ' - ')
     .replace(/\\/g, '/')
     .replace(/[^\S\r\n]+/g, ' '); // collapse consecutive spaces, keep newlines
-
-  // Step 4: Re-inject URN-based mention tokens intact
-  sanitized = sanitized.replace(/\x00MENTION(\d+)\x00/g, (_, i) => placeholders[parseInt(i)]);
-
-  return sanitized;
 }
 
 /**

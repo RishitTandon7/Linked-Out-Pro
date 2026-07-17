@@ -274,18 +274,6 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
     console.log(`   postText length : ${postText?.length} chars`);
     console.log(`   postText preview: ${postText?.slice(0, 80)}...`);
 
-    // ── AUTO-LINK PLAIN MENTIONS BEFORE PUBLISHING ──
-    const { all } = require('../database/db');
-    const contacts = await all('SELECT * FROM mention_contacts WHERE user_id = ?', [req.user.id]);
-    if (contacts && contacts.length > 0) {
-      contacts.forEach(c => {
-        const safeName = c.display_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Match @Name not followed by [ or (
-        const plainRe = new RegExp(`@${safeName}(?!\\[|\\()`, 'gi');
-        postText = postText.replace(plainRe, `@[${c.display_name}](${c.linkedin_id})`);
-      });
-    }
-
     // ── IMAGES: fetch from Supabase storage ──
     const { IS_SUPABASE, supabase: sb } = require('../database/db');
     const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'post-images';

@@ -1118,7 +1118,6 @@ async function regenerate() { await generatePost(); }
 function displayPost(text, hashtags, serverImages = []) {
   const editPost = document.getElementById('editPost');
   editPost.value = text;
-  renderMentionPreview(text);
   
   // Defer measurement until after browser renders the new value
   requestAnimationFrame(() => {
@@ -1304,7 +1303,6 @@ function syncPreview() {
   currentPostText = val;
   if (!val && !currentPostText) document.getElementById('previewActions')?.classList.add('hidden');
   else document.getElementById('previewActions')?.classList.remove('hidden');
-  renderMentionPreview(val);
   updatePostDraft();
 }
 function syncHashtags() {
@@ -2102,96 +2100,5 @@ function initMentionListener() {
     const filtered = getFilteredMentions(query);
     renderMentionDropdown(filtered);
   });
-
-  // When textarea loses focus, switch back to overlay if text has mentions
-  ta.addEventListener('blur', () => {
-    setTimeout(() => {
-      closeMentionDropdown();
-      const val = ta.value;
-      if (val && val.includes('@[')) {
-        renderMentionPreview(val);
-      }
-    }, 150); // timeout lets mousedown fire first (dropdown click)
-  });
 }
 
-// -- Manage Contacts Modal --
-
-function openMentionModal() {
-  const overlay = document.getElementById('mentionModalOverlay');
-  if (overlay) overlay.classList.add('open');
-}
-
-function closeMentionModal(e) {
-  // If called from onclick on overlay, only close if clicking the overlay itself
-  if (e && e.target !== document.getElementById('mentionModalOverlay')) return;
-  const overlay = document.getElementById('mentionModalOverlay');
-  if (overlay) overlay.classList.remove('open');
-}
-
-function renderMentionContactsModal() {
-  const list = document.getElementById('mentionContactsList');
-  if (!list) return;
-  if (mentionContacts.length === 0) {
-    list.innerHTML = '<div class="mention-empty">No contacts yet — paste a LinkedIn URL above to add one.</div>';
-    return;
-  }
-  list.innerHTML = mentionContacts.map(c => {
-    const initials = c.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    const avatarUrl = getAvatarUrl(c.linkedin_id);
-    const avatar = avatarUrl
-      ? `<div class="mention-item-avatar"><img src="${avatarUrl}" alt="${initials}" onerror="this.style.display='none'; this.parentElement.innerHTML='${initials}';" /></div>`
-      : `<div class="mention-item-avatar">${initials}</div>`;
-    // Show the profile URL (stored in linkedin_id) as a clickable subtitle
-    const urlDisplay = c.linkedin_id.replace(/^https?:\/\/(www\.)?linkedin\.com/i, 'linkedin.com').replace(/\/$/, '');
-    const descText = c.description ? `<div class="desc" style="font-size: 12.5px; color: #70b5f9; font-weight: 500; margin: 2px 0;">${c.description}</div>` : '';
-    return `<div class="mention-contact-row">
-      ${avatar}
-      <div class="mention-contact-info">
-        <div class="name">${c.display_name}</div>
-        ${descText}
-        <div class="lid" title="${c.linkedin_id}">${urlDisplay}</div>
-      </div>
-      <button class="mention-delete-btn" onclick="deleteMentionContact('${c.id}')" title="Remove">&#x2715;</button>
-    </div>`;
-  }).join('');
-}
-
-async function addMentionContact() {
-  const urlInput = document.getElementById('mentionUrlInput');
-  const descInput = document.getElementById('mentionDescInput');
-  const url = urlInput?.value?.trim();
-  const desc = descInput?.value?.trim() || '';
-  if (!url || !url.includes('linkedin.com')) {
-    showToast('Please paste a valid LinkedIn profile URL', 'error');
-    return;
-  }
-  try {
-    const data = await api('/api/mentions', 'POST', { profileUrl: url, description: desc });
-    mentionContacts.push(data.contact);
-    mentionContacts.sort((a, b) => a.display_name.localeCompare(b.display_name));
-    urlInput.value = '';
-    if (descInput) descInput.value = '';
-    renderMentionContactsModal();
-    showToast(`${data.contact.display_name} added to mention contacts ✓`);
-  } catch (e) {
-    showToast(e.message || 'Could not add contact', 'error');
-  }
-}
-
-async function deleteMentionContact(id) {
-  try {
-    await api(`/api/mentions/${id}`, 'DELETE');
-    mentionContacts = mentionContacts.filter(c => c.id !== id);
-    renderMentionContactsModal();
-    showToast('Contact removed');
-  } catch (e) {
-    showToast(e.message || 'Could not remove contact', 'error');
-  }
-}
-
-// Initialize mention system on page load
-document.addEventListener('DOMContentLoaded', () => {
-  loadMentionContacts();
-  initMentionListener();
-});

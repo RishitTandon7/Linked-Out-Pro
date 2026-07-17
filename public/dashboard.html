@@ -171,10 +171,6 @@
               <div class="lk-body">
                 <div class="post-editor-wrap">
                   <textarea class="lk-textarea" id="editPost" oninput="syncPreview()" placeholder="Start typing your post..."></textarea>
-                  <!-- Rendered overlay: shows @Name chips in-place of the textarea -->
-                  <div id="lkRenderedText" onclick="switchToMentionEdit()" style="display:none;"></div>
-                  <!-- @mention autocomplete dropdown (anchored to textarea) -->
-                  <div id="mention-dropdown"></div>
                 </div>
                 <div class="lk-hashtags-wrap hidden" id="postHashtagsWrap">
                   <input type="text" class="lk-hashtags-input" id="editHashtags" oninput="syncHashtags()" placeholder="#hashtags" />
@@ -198,7 +194,6 @@
             <div class="preview-actions hidden" id="previewActions">
               <div class="action-row">
                 <button class="action-btn-line" onclick="regenerate()">↺ Retry</button>
-                <button class="mention-btn" onclick="openMentionModal()" title="Manage @mention contacts">@</button>
                 <div class="action-flex">
                   <input type="datetime-local" id="scheduleDate" class="forge-input date-input" />
                   <button class="action-btn-line" onclick="schedulePost()">Schedule</button>
@@ -1784,35 +1779,5 @@ window.addEventListener('resize', () => {
 });
 </script>
 
-<!-- ===== MENTION CONTACTS MODAL ===== -->
-<div class="mention-modal-overlay" id="mentionModalOverlay" onclick="closeMentionModal(event)">
-  <div class="mention-modal">
-    <div class="mention-modal-title">
-      <span>@</span> Mention Contacts
-      <button class="mention-modal-close" onclick="closeMentionModal()">&#x2715;</button>
-    </div>
-
-    <!-- Add new contact form -->
-    <div class="mention-add-form">
-      <input type="url" id="mentionUrlInput" placeholder="Paste LinkedIn profile URL — e.g. linkedin.com/in/jane-smith" autocomplete="off" />
-      <input type="text" id="mentionDescInput" placeholder="Description / Role (optional — e.g. Writer, CEO)" autocomplete="off" style="margin-top: 8px;" />
-      <input type="text" id="mentionIdInput" placeholder="Real LinkedIn Member ID (optional — for blue tagging)" autocomplete="off" style="margin-top: 8px;" />
-      <p class="mention-id-hint" style="line-height:1.6; margin-top: 8px;">
-        💡 <strong>How to make mentions turn blue on LinkedIn:</strong>
-        <br/>1. Paste their LinkedIn profile URL.
-        <br/>2. Find their numeric Member ID (Right-click profile → View Page Source → search for <code>memberId</code> or <code>urn:li:member:</code>) and paste it in the field above.
-      </p>
-      <button class="mention-add-btn" onclick="addMentionContact()">+ Add Contact</button>
-    </div>
-
-
-    <!-- Saved contacts list -->
-    <div class="mention-contacts-list" id="mentionContactsList">
-      <div class="mention-empty">No contacts saved yet. Add one above.</div>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
-
