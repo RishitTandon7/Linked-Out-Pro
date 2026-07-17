@@ -17,6 +17,7 @@ const settingsRoutes  = require('./routes/settings');
 const cronRoutes      = require('./routes/cron');
 const analyticsRoutes = require('./routes/analytics');
 const bossRoutes      = require('./routes/boss');
+const mentionsRoutes  = require('./routes/mentions');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -45,6 +46,7 @@ app.use('/api/settings',  settingsRoutes);
 app.use('/api/cron',      cronRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/boss',      bossRoutes);
+app.use('/api/mentions',  mentionsRoutes);
 
 // ---- Version endpoint — used by the client to detect when a new deploy is live ----
 const APP_VERSION = '1.7.6';

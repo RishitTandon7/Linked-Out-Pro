@@ -871,3 +871,248 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
   0% { transform: translateX(-110%); }
   100% { transform: translateX(210%); }
 }
+
+/* =============================================
+   @MENTION FEATURE
+   ============================================= */
+
+/* Wrapper must be relative so the dropdown anchors correctly */
+.post-editor-wrap { position: relative; }
+
+/* Autocomplete dropdown */
+#mention-dropdown {
+  display: none;
+  position: absolute;
+  left: 0;
+  z-index: 9999;
+  min-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #1a1a1e;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+  backdrop-filter: blur(16px);
+  padding: 6px;
+}
+#mention-dropdown.open { display: block; }
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mention-item:hover,
+.mention-item.active {
+  background: rgba(0,119,181,0.18);
+}
+.mention-item-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0077b5;
+  overflow: hidden;
+}
+.mention-item-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.mention-item-name { font-size: 13px; font-weight: 600; color: #e2e2e6; }
+.mention-item-id   { font-size: 11px; color: rgba(226,226,230,0.4); margin-top: 1px; }
+
+/* Mention chip inside LinkedIn preview card */
+.lk-mention {
+  color: #0077b5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lk-mention:hover { text-decoration: underline; }
+
+/* @ button in the toolbar */
+.mention-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: rgba(226,226,230,0.5);
+  font-size: 14px;
+  font-weight: 700;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.mention-btn:hover {
+  background: rgba(0,119,181,0.15);
+  border-color: #0077b5;
+  color: #0077b5;
+}
+
+/* Manage Contacts Modal */
+.mention-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.mention-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.mention-modal {
+  background: #141418;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 28px;
+  width: 440px;
+  max-width: 95vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: translateY(10px);
+  transition: transform 0.2s;
+}
+.mention-modal-overlay.open .mention-modal { transform: translateY(0); }
+.mention-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e2e2e6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mention-modal-title span { color: #0077b5; }
+.mention-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mention-add-form input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #e2e2e6;
+  font-size: 13px;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.mention-add-form input:focus { border-color: #0077b5; }
+.mention-add-form input::placeholder { color: rgba(226,226,230,0.3); }
+.mention-add-btn {
+  background: #0077b5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-end;
+}
+.mention-add-btn:hover { background: #005f91; }
+.mention-id-hint {
+  font-size: 11px;
+  color: rgba(226,226,230,0.4);
+  line-height: 1.5;
+}
+.mention-id-hint a { color: #0077b5; }
+.mention-contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 250px;
+  padding-right: 4px;
+}
+.mention-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.mention-contact-row .mention-item-avatar { width: 30px; height: 30px; font-size: 12px; }
+.mention-contact-info { flex: 1; min-width: 0; }
+.mention-contact-info .name { font-size: 13px; font-weight: 600; color: #e2e2e6; }
+.mention-contact-info .lid  { font-size: 11px; color: rgba(226,226,230,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mention-delete-btn {
+  background: none;
+  border: none;
+  color: rgba(226,226,230,0.3);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.mention-delete-btn:hover { color: #e53e3e; background: rgba(229,62,62,0.1); }
+.mention-empty {
+  text-align: center;
+  color: rgba(226,226,230,0.3);
+  font-size: 13px;
+  padding: 24px 0;
+}
+.mention-modal-close {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: rgba(226,226,230,0.5);
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  transition: all 0.15s;
+}
+.mention-modal-close:hover { background: rgba(255,255,255,0.08); color: #e2e2e6; }
+
+/* Rendered text preview showing @mention chips */
+.lk-rendered-text {
+  font-size: 14px;
+  color: var(--lk-text, #1a1a1a);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 6px 0 2px;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  margin-top: 6px;
+}
+.lk-rendered-text .lk-mention {
+  background: rgba(0,119,181,0.12);
+  color: #0077b5;
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+

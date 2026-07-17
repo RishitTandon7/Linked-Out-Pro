@@ -827,10 +827,8 @@ function moveFile(idx, direction) {
   }
   renderPreviewStrip();
   updateForgeButton();
-  // Live sync with the preview card if a post is already displayed
-  if (currentPostText) {
-    displayPost(currentPostText, currentHashtags);
-  }
+  // Live sync with the preview card
+  displayPost(currentPostText || '', currentHashtags || '');
 }
 
 function renderPreviewStrip() {
@@ -887,10 +885,8 @@ function renderPreviewStrip() {
           
           renderPreviewStrip();
           updateForgeButton();
-          // Update preview if current post is loaded
-          if (currentPostText) {
-            displayPost(currentPostText, currentHashtags);
-          }
+          // Update preview card
+          displayPost(currentPostText || '', currentHashtags || '');
         }
       });
     }
@@ -1122,6 +1118,7 @@ async function regenerate() { await generatePost(); }
 function displayPost(text, hashtags, serverImages = []) {
   const editPost = document.getElementById('editPost');
   editPost.value = text;
+  renderMentionPreview(text);
   
   // Defer measurement until after browser renders the new value
   requestAnimationFrame(() => {
@@ -1307,6 +1304,7 @@ function syncPreview() {
   currentPostText = val;
   if (!val && !currentPostText) document.getElementById('previewActions')?.classList.add('hidden');
   else document.getElementById('previewActions')?.classList.remove('hidden');
+  renderMentionPreview(val);
   updatePostDraft();
 }
 function syncHashtags() {
@@ -1887,3 +1885,242 @@ function handleLightboxKeydown(e) {
   if (e.key === 'ArrowRight') lightboxNext();
   if (e.key === 'ArrowLeft') lightboxPrev();
 }
+
+// ============================================================
+//  @MENTION SYSTEM
+// ============================================================
+
+let mentionContacts   = [];   // [{ id, display_name, linkedin_id, avatar_url }]
+let mentionQuery      = '';   // current filter string after @
+let mentionActive     = -1;   // active dropdown item index
+let mentionStartIdx   = -1;   // cursor position where the @ starts in textarea
+
+/** Load saved contacts from the server */
+async function loadMentionContacts() {
+  try {
+    const data = await api('/api/mentions');
+    mentionContacts = data.contacts || [];
+    renderMentionContactsModal();
+  } catch (e) {
+    console.warn('Could not load mention contacts:', e.message);
+  }
+}
+
+/** Render @[Name](urn) tokens as blue chips in the lkRenderedText preview div */
+function renderMentionPreview(text) {
+  const el = document.getElementById('lkRenderedText');
+  if (!el) return;
+  if (!text || !text.includes('@[')) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  const MENTION_RE = /@\[([^\]]+)\]\((urn:li:\w+:[^)]+)\)/g;
+  // Escape HTML first, then re-apply the mention regex on escaped string
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const rendered = escaped.replace(MENTION_RE, (match, name, urn) =>
+    `<span class="lk-mention" title="${urn}">@${name}</span>`
+  );
+  el.innerHTML = rendered.replace(/\n/g, '<br>');
+  el.classList.remove('hidden');
+}
+
+// -- Autocomplete dropdown logic --
+
+/** Get filtered list of contacts matching the current query */
+function getFilteredMentions(query) {
+  const q = query.toLowerCase();
+  return mentionContacts.filter(c => c.display_name.toLowerCase().includes(q));
+}
+
+/** Render the dropdown items */
+function renderMentionDropdown(items) {
+  const dd = document.getElementById('mention-dropdown');
+  if (!dd) return;
+  if (items.length === 0) {
+    dd.classList.remove('open');
+    return;
+  }
+  dd.innerHTML = '';
+  items.forEach((contact, i) => {
+    const div = document.createElement('div');
+    div.className = 'mention-item' + (i === mentionActive ? ' active' : '');
+    div.dataset.idx = i;
+
+    const initials = contact.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const avatarHtml = contact.avatar_url
+      ? `<div class="mention-item-avatar"><img src="${contact.avatar_url}" alt="${initials}" onerror="this.parentElement.textContent='${initials}'"/></div>`
+      : `<div class="mention-item-avatar">${initials}</div>`;
+
+    div.innerHTML = `
+      ${avatarHtml}
+      <div>
+        <div class="mention-item-name">${contact.display_name}</div>
+        <div class="mention-item-id">urn:li:person:${contact.linkedin_id}</div>
+      </div>`;
+
+    div.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // prevent textarea blur
+      insertMention(contact);
+    });
+    dd.appendChild(div);
+  });
+  dd.classList.add('open');
+}
+
+/** Insert @[Name](urn) at the current cursor position, replacing the @query */
+function insertMention(contact) {
+  const ta = document.getElementById('editPost');
+  if (!ta) return;
+  const token = `@[${contact.display_name}](urn:li:person:${contact.linkedin_id})`;
+  const before = ta.value.slice(0, mentionStartIdx);
+  const after  = ta.value.slice(ta.selectionStart);
+  ta.value = before + token + after;
+  // Move cursor to after the inserted token
+  const newPos = mentionStartIdx + token.length;
+  ta.setSelectionRange(newPos, newPos);
+  ta.focus();
+  closeMentionDropdown();
+  syncPreview();
+}
+
+function closeMentionDropdown() {
+  const dd = document.getElementById('mention-dropdown');
+  if (dd) dd.classList.remove('open');
+  mentionQuery    = '';
+  mentionActive   = -1;
+  mentionStartIdx = -1;
+}
+
+/** Init mention listener on the editPost textarea */
+function initMentionListener() {
+  const ta = document.getElementById('editPost');
+  if (!ta) return;
+
+  ta.addEventListener('keydown', (e) => {
+    const dd = document.getElementById('mention-dropdown');
+    if (!dd || !dd.classList.contains('open')) return;
+    const items = dd.querySelectorAll('.mention-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      mentionActive = Math.min(mentionActive + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('active', i === mentionActive));
+      if (items[mentionActive]) items[mentionActive].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      mentionActive = Math.max(mentionActive - 1, 0);
+      items.forEach((el, i) => el.classList.toggle('active', i === mentionActive));
+      if (items[mentionActive]) items[mentionActive].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (mentionActive >= 0 && mentionActive < items.length) {
+        e.preventDefault();
+        const filtered = getFilteredMentions(mentionQuery);
+        if (filtered[mentionActive]) insertMention(filtered[mentionActive]);
+      }
+    } else if (e.key === 'Escape') {
+      closeMentionDropdown();
+    }
+  });
+
+  ta.addEventListener('input', (e) => {
+    const pos   = ta.selectionStart;
+    const text  = ta.value.slice(0, pos);
+    // Look backwards for @
+    const atIdx = text.lastIndexOf('@');
+    if (atIdx === -1) { closeMentionDropdown(); return; }
+
+    // Check nothing between @ and cursor that would break a mention token
+    const query = text.slice(atIdx + 1);
+    if (/\s/.test(query) || query.includes('@')) {
+      closeMentionDropdown();
+      return;
+    }
+    // We're inside an @ mention query
+    mentionQuery    = query;
+    mentionStartIdx = atIdx;
+    mentionActive   = -1;
+
+    if (mentionContacts.length === 0) { closeMentionDropdown(); return; }
+
+    const filtered = getFilteredMentions(query);
+    renderMentionDropdown(filtered);
+  });
+
+  // Close dropdown on blur
+  ta.addEventListener('blur', () => {
+    setTimeout(closeMentionDropdown, 150); // timeout lets mousedown fire first
+  });
+}
+
+// -- Manage Contacts Modal --
+
+function openMentionModal() {
+  const overlay = document.getElementById('mentionModalOverlay');
+  if (overlay) overlay.classList.add('open');
+}
+
+function closeMentionModal(e) {
+  // If called from onclick on overlay, only close if clicking the overlay itself
+  if (e && e.target !== document.getElementById('mentionModalOverlay')) return;
+  const overlay = document.getElementById('mentionModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function renderMentionContactsModal() {
+  const list = document.getElementById('mentionContactsList');
+  if (!list) return;
+  if (mentionContacts.length === 0) {
+    list.innerHTML = '<div class="mention-empty">No contacts saved yet. Add one above.</div>';
+    return;
+  }
+  list.innerHTML = mentionContacts.map(c => {
+    const initials = c.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const avatar = c.avatar_url
+      ? `<div class="mention-item-avatar"><img src="${c.avatar_url}" alt="${initials}" onerror="this.parentElement.textContent='${initials}'"/></div>`
+      : `<div class="mention-item-avatar">${initials}</div>`;
+    return `<div class="mention-contact-row">
+      ${avatar}
+      <div class="mention-contact-info">
+        <div class="name">${c.display_name}</div>
+        <div class="lid">ID: ${c.linkedin_id}</div>
+      </div>
+      <button class="mention-delete-btn" onclick="deleteMentionContact('${c.id}')" title="Remove">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+async function addMentionContact() {
+  const nameInput = document.getElementById('mentionNameInput');
+  const idInput   = document.getElementById('mentionIdInput');
+  const name = nameInput?.value?.trim();
+  const lid  = idInput?.value?.trim();
+  if (!name || !lid) { showToast('Please fill in both name and LinkedIn ID', 'error'); return; }
+  try {
+    const data = await api('/api/mentions', 'POST', { displayName: name, linkedinId: lid });
+    mentionContacts.push(data.contact);
+    mentionContacts.sort((a, b) => a.display_name.localeCompare(b.display_name));
+    nameInput.value = '';
+    idInput.value   = '';
+    renderMentionContactsModal();
+    showToast(`${name} added to your mention contacts ✓`);
+  } catch (e) {
+    showToast(e.message || 'Could not add contact', 'error');
+  }
+}
+
+async function deleteMentionContact(id) {
+  try {
+    await api(`/api/mentions/${id}`, 'DELETE');
+    mentionContacts = mentionContacts.filter(c => c.id !== id);
+    renderMentionContactsModal();
+    showToast('Contact removed');
+  } catch (e) {
+    showToast(e.message || 'Could not remove contact', 'error');
+  }
+}
+
+// Initialize mention system on page load
+document.addEventListener('DOMContentLoaded', () => {
+  loadMentionContacts();
+  initMentionListener();
+});

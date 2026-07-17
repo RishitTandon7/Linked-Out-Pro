@@ -228,7 +228,18 @@ async function uploadVideoToLinkedIn(accessToken, linkedinId, videoPath, mimetyp
  */
 function sanitizeCommentary(text) {
   if (!text) return '';
-  let sanitized = text
+
+  // Step 1: Extract all @[Name](urn:li:...) mention tokens so they survive sanitization
+  const MENTION_RE = /@\[([^\]]+)\]\((urn:li:\w+:[^\)]+)\)/g;
+  const placeholders = [];
+  let withPlaceholders = text.replace(MENTION_RE, (match, name, urn) => {
+    const key = `\x00MENTION${placeholders.length}\x00`;
+    placeholders.push(match);
+    return key;
+  });
+
+  // Step 2: Sanitize the rest (strip Rest.li special chars)
+  let sanitized = withPlaceholders
     .replace(/\(/g, ' - ')
     .replace(/\)/g, ' - ')
     .replace(/\[/g, '"')
@@ -237,8 +248,13 @@ function sanitizeCommentary(text) {
     .replace(/\}/g, ' - ')
     .replace(/\\/g, '/')
     .replace(/[^\S\r\n]+/g, ' '); // collapse consecutive spaces, keep newlines
+
+  // Step 3: Re-inject mention tokens intact
+  sanitized = sanitized.replace(/\x00MENTION(\d+)\x00/g, (_, i) => placeholders[parseInt(i)]);
+
   return sanitized;
 }
+
 
 /**
  * Publish a post to LinkedIn using the new REST Posts API.

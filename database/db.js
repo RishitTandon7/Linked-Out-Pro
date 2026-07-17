@@ -162,6 +162,19 @@ if (IS_SUPABASE) {
     await run(`CREATE INDEX IF NOT EXISTS idx_pv_ts   ON page_views(ts)`);
     await run(`CREATE INDEX IF NOT EXISTS idx_pv_page ON page_views(page)`);
 
+    // Mention contacts — people the user frequently @mentions in posts
+    await run(`
+      CREATE TABLE IF NOT EXISTS mention_contacts (
+        id           TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        linkedin_id  TEXT NOT NULL,
+        avatar_url   TEXT,
+        created_at   INTEGER DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('✅ Database schema ready');
   }
 
