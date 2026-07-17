@@ -845,19 +845,56 @@ function renderPreviewStrip() {
       ? `<video src="${url}" muted playsinline style="width:100%;height:100%;object-fit:cover;border-radius:6px;"></video>
          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;background:rgba(0,0,0,0.5);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`
       : `<img src="${url}" />`;
-      
-    const leftBtn = idx > 0
-      ? `<button class="move-thumb-left" onclick="moveFile(${idx}, 'left')" title="Move left">◀</button>`
-      : '';
-    const rightBtn = idx < selectedFiles.length - 1
-      ? `<button class="move-thumb-right" onclick="moveFile(${idx}, 'right')" title="Move right">▶</button>`
-      : '';
 
     div.innerHTML = `${mediaEl}
       <button class="remove-thumb" onclick="removeFile(${idx})">✕</button>
-      ${leftBtn}
-      ${rightBtn}
       ${!isVideo ? `<button class="edit-thumb" onclick="openImgEditor(${idx})" title="Edit image"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}`;
+
+    // Enable drag-and-drop reordering in Event Mode (all-in-one post)
+    if (currentMode === 'event') {
+      div.setAttribute('draggable', 'true');
+      
+      div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', idx);
+        div.classList.add('dragging');
+      });
+
+      div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+        document.querySelectorAll('.preview-thumb').forEach(t => t.classList.remove('drag-over'));
+      });
+
+      div.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        div.classList.add('drag-over');
+      });
+
+      div.addEventListener('dragleave', () => {
+        div.classList.remove('drag-over');
+      });
+
+      div.addEventListener('drop', (e) => {
+        e.preventDefault();
+        div.classList.remove('drag-over');
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        const toIdx = idx;
+        
+        if (fromIdx !== toIdx && !isNaN(fromIdx)) {
+          // Reorder in selectedFiles array
+          const fileToMove = selectedFiles[fromIdx];
+          selectedFiles.splice(fromIdx, 1);
+          selectedFiles.splice(toIdx, 0, fileToMove);
+          
+          renderPreviewStrip();
+          updateForgeButton();
+          // Update preview if current post is loaded
+          if (currentPostText) {
+            displayPost(currentPostText, currentHashtags);
+          }
+        }
+      });
+    }
+
     strip.appendChild(div);
   });
 }
