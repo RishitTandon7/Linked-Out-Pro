@@ -874,6 +874,63 @@ function selectTone(btn) {
   currentTone = btn.dataset.tone;
 }
 
+// ---- Image Compression Helper ----
+async function compressImageIfNeeded(file) {
+  if (!file.type.startsWith('image/')) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      
+      const MAX_WIDTH = 1200;
+      const MAX_HEIGHT = 1200;
+      let width = img.width;
+      let height = img.height;
+
+      // Maintain aspect ratio
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = Math.round((width * MAX_HEIGHT) / height);
+          height = MAX_HEIGHT;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          console.log(`Image compressed: ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
+          resolve(compressedFile);
+        },
+        'image/jpeg',
+        0.80
+      );
+    };
+    img.onerror = () => {
+      resolve(file);
+    };
+  });
+}
+
 // ---- Generate Post ----
 async function generatePost() {
   if (selectedFiles.length === 0) { showToast('Please upload at least one image', 'error'); return; }
@@ -890,8 +947,9 @@ async function generatePost() {
       const results = [];
       for (let i = 0; i < selectedFiles.length; i++) {
         const f = selectedFiles[i];
+        const compressedFile = await compressImageIfNeeded(f);
         const formData = new FormData();
-        formData.append('images', f);
+        formData.append('images', compressedFile);
         formData.append('context', context);
         formData.append('intent', currentIntent);
         formData.append('tone', currentTone);
@@ -935,7 +993,10 @@ async function generatePost() {
     } else {
       // Event Mode: 1 post, multiple images — stay in Studio for user decision
       const formData = new FormData();
-      selectedFiles.forEach(f => formData.append('images', f));
+      for (const f of selectedFiles) {
+        const compressedFile = await compressImageIfNeeded(f);
+        formData.append('images', compressedFile);
+      }
       formData.append('context', context);
       formData.append('intent',  currentIntent);
       formData.append('tone',    currentTone);

@@ -307,7 +307,7 @@ async function publishPost(accessToken, linkedinId, postText, hashtags, images =
         // Multi-image carousel
         postBody.content = {
           multiImage: {
-            images: imageUrns.map(id => ({ image: id }))
+            images: imageUrns.map(id => ({ id }))
           }
         };
       }

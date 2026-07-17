@@ -331,7 +331,9 @@ router.post('/:id/publish-now', requireAuth, async (req, res) => {
 
   } catch (e) {
     console.error('Publish-now error:', e.message, e.response?.data || '');
-    res.status(500).json({ error: e.message });
+    const status = e.response?.status || 500;
+    const errorMsg = e.response?.data?.message || e.message || 'Internal server error';
+    res.status(status).json({ error: errorMsg });
   }
 });
 

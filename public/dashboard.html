@@ -793,6 +793,14 @@
       let boundW = isRotated ? natH : natW;
       let boundH = isRotated ? natW : natH;
 
+      const maxDim = 1200;
+      let scale = 1;
+      if (boundW > maxDim || boundH > maxDim) {
+        scale = Math.min(maxDim / boundW, maxDim / boundH);
+        boundW = Math.round(boundW * scale);
+        boundH = Math.round(boundH * scale);
+      }
+
       const tmp = document.createElement('canvas');
       tmp.width = boundW;
       tmp.height = boundH;
@@ -800,7 +808,7 @@
       
       ctx.translate(boundW / 2, boundH / 2);
       ctx.rotate(_editorRotation * Math.PI / 180);
-      ctx.scale(_editorFlipH ? -1 : 1, _editorFlipV ? -1 : 1);
+      ctx.scale(_editorFlipH ? -1 * scale : 1 * scale, _editorFlipV ? -1 * scale : 1 * scale);
       ctx.drawImage(_editorImg, -natW / 2, -natH / 2, natW, natH);
 
       const saveBtn = document.querySelector('.modal-footer .modal-btn.primary');
@@ -836,7 +844,7 @@
         }
         closeImgEditor();
         showToast('✓ Image saved!', 'success');
-      }, 'image/jpeg', 0.95);
+      }, 'image/jpeg', 0.85);
     }
   </script>
 </div> <!-- /mainAppLayout -->
