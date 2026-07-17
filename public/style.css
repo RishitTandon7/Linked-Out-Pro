@@ -1095,24 +1095,44 @@ input:checked + .slider::before { transform: translateX(20px); background: #000;
 }
 .mention-modal-close:hover { background: rgba(255,255,255,0.08); color: #e2e2e6; }
 
-/* Rendered text preview showing @mention chips */
-.lk-rendered-text {
-  font-size: 14px;
-  color: var(--lk-text, #1a1a1a);
-  line-height: 1.6;
+/* Rendered text overlay — sits exactly on top of the textarea.
+   When @mentions are present we hide the textarea and show this instead. */
+.post-editor-wrap {
+  position: relative;
+}
+#lkRenderedText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 80px;
+  /* Exactly match .lk-textarea */
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.925rem;
+  line-height: 1.65;
+  padding: 14px 0 6px;
   white-space: pre-wrap;
   word-break: break-word;
-  padding: 6px 0 2px;
-  border-top: 1px dashed rgba(255,255,255,0.08);
-  margin-top: 6px;
+  box-sizing: border-box;
+  cursor: text;
+  border: none;
+  outline: none;
+  /* so it doesn't steal pointer events from the dropdown */
+  z-index: 1;
 }
-.lk-rendered-text .lk-mention {
-  background: rgba(0,119,181,0.12);
-  color: #0077b5;
+#lkRenderedText .lk-mention {
+  background: rgba(0,119,181,0.15);
+  color: #0a84cc;
   border-radius: 4px;
   padding: 0 3px;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
 }
+/* When the overlay is active, keep the textarea's space but make it invisible */
+#editPost.mention-hidden {
+  visibility: hidden;
+}
+
 
 

@@ -171,14 +171,14 @@
               <div class="lk-body">
                 <div class="post-editor-wrap">
                   <textarea class="lk-textarea" id="editPost" oninput="syncPreview()" placeholder="Start typing your post..."></textarea>
+                  <!-- Rendered overlay: shows @Name chips in-place of the textarea -->
+                  <div id="lkRenderedText" onclick="switchToMentionEdit()" style="display:none;"></div>
                   <!-- @mention autocomplete dropdown (anchored to textarea) -->
                   <div id="mention-dropdown"></div>
                 </div>
                 <div class="lk-hashtags-wrap hidden" id="postHashtagsWrap">
                   <input type="text" class="lk-hashtags-input" id="editHashtags" oninput="syncHashtags()" placeholder="#hashtags" />
                 </div>
-                <!-- Rendered mention preview (shows @Name chips) - hidden when no mentions present -->
-                <div id="lkRenderedText" class="lk-rendered-text hidden"></div>
               </div>
 
               

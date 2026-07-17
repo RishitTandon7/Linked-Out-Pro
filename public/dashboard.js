@@ -1906,23 +1906,51 @@ async function loadMentionContacts() {
   }
 }
 
-/** Render @[Name] tokens as blue chips in the lkRenderedText preview div */
+/**
+ * Render @[Name] tokens as blue chips, shown IN PLACE of the textarea.
+ * When mentions are present:
+ *   - textarea is made invisible (keeps its space/height)
+ *   - lkRenderedText overlay is shown on top with same styling
+ * When no mentions: textarea is fully visible, overlay is hidden.
+ */
 function renderMentionPreview(text) {
   const el = document.getElementById('lkRenderedText');
-  if (!el) return;
+  const ta = document.getElementById('editPost');
+  if (!el || !ta) return;
+
   if (!text || !text.includes('@[')) {
-    el.classList.add('hidden');
+    // No mentions — show textarea, hide overlay
+    el.style.display = 'none';
+    ta.classList.remove('mention-hidden');
     el.innerHTML = '';
     return;
   }
-  // Match @[Name] — simple format, no URN
+
+  // Build rendered HTML: replace @[Name] with blue chip, escape everything else
   const MENTION_RE = /@\[([^\]]+)\]/g;
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const rendered = escaped.replace(MENTION_RE, (match, name) =>
+  const rendered = escaped.replace(MENTION_RE, (_, name) =>
     `<span class="lk-mention">@${name}</span>`
   );
   el.innerHTML = rendered.replace(/\n/g, '<br>');
-  el.classList.remove('hidden');
+
+  // Size the overlay to match the textarea's current rendered height
+  el.style.display = 'block';
+  el.style.height = ta.style.height || ta.scrollHeight + 'px';
+  ta.classList.add('mention-hidden');
+}
+
+/** Called when user clicks the overlay — switches back to textarea edit mode */
+function switchToMentionEdit() {
+  const el = document.getElementById('lkRenderedText');
+  const ta = document.getElementById('editPost');
+  if (!el || !ta) return;
+  el.style.display = 'none';
+  ta.classList.remove('mention-hidden');
+  ta.focus();
+  // Put cursor at end
+  const len = ta.value.length;
+  ta.setSelectionRange(len, len);
 }
 
 // -- Autocomplete dropdown logic --
@@ -2046,9 +2074,15 @@ function initMentionListener() {
     renderMentionDropdown(filtered);
   });
 
-  // Close dropdown on blur
+  // When textarea loses focus, switch back to overlay if text has mentions
   ta.addEventListener('blur', () => {
-    setTimeout(closeMentionDropdown, 150); // timeout lets mousedown fire first
+    setTimeout(() => {
+      closeMentionDropdown();
+      const val = ta.value;
+      if (val && val.includes('@[')) {
+        renderMentionPreview(val);
+      }
+    }, 150); // timeout lets mousedown fire first (dropdown click)
   });
 }
 
