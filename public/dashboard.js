@@ -1961,6 +1961,19 @@ function getFilteredMentions(query) {
   return mentionContacts.filter(c => c.display_name.toLowerCase().includes(q));
 }
 
+function getAvatarUrl(linkedinId) {
+  if (!linkedinId) return '';
+  const personMatch = linkedinId.match(/linkedin\.com\/in\/([a-zA-Z0-9\-]+)/i);
+  if (personMatch) {
+    return `https://unavatar.io/linkedin/user:${personMatch[1]}`;
+  }
+  const companyMatch = linkedinId.match(/linkedin\.com\/company\/([a-zA-Z0-9\-]+)/i);
+  if (companyMatch) {
+    return `https://unavatar.io/linkedin/company:${companyMatch[1]}`;
+  }
+  return '';
+}
+
 /** Render the dropdown items */
 function renderMentionDropdown(items) {
   const dd = document.getElementById('mention-dropdown');
@@ -1976,8 +1989,9 @@ function renderMentionDropdown(items) {
     div.dataset.idx = i;
 
     const initials = contact.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    const avatarHtml = contact.avatar_url
-      ? `<div class="mention-item-avatar"><img src="${contact.avatar_url}" alt="${initials}" onerror="this.parentElement.textContent='${initials}'"/></div>`
+    const avatarUrl = getAvatarUrl(contact.linkedin_id);
+    const avatarHtml = avatarUrl
+      ? `<div class="mention-item-avatar"><img src="${avatarUrl}" alt="${initials}" onerror="this.style.display='none'; this.parentElement.innerHTML='${initials}';" /></div>`
       : `<div class="mention-item-avatar">${initials}</div>`;
 
     const descText = contact.description || (contact.linkedin_id.includes('/company/') ? 'Company Page' : 'LinkedIn Profile');
@@ -2110,7 +2124,10 @@ function renderMentionContactsModal() {
   }
   list.innerHTML = mentionContacts.map(c => {
     const initials = c.display_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    const avatar = `<div class="mention-item-avatar">${initials}</div>`;
+    const avatarUrl = getAvatarUrl(c.linkedin_id);
+    const avatar = avatarUrl
+      ? `<div class="mention-item-avatar"><img src="${avatarUrl}" alt="${initials}" onerror="this.style.display='none'; this.parentElement.innerHTML='${initials}';" /></div>`
+      : `<div class="mention-item-avatar">${initials}</div>`;
     // Show the profile URL (stored in linkedin_id) as a clickable subtitle
     const urlDisplay = c.linkedin_id.replace(/^https?:\/\/(www\.)?linkedin\.com/i, 'linkedin.com').replace(/\/$/, '');
     const descText = c.description ? `<div class="desc" style="font-size: 12.5px; color: #70b5f9; font-weight: 500; margin: 2px 0;">${c.description}</div>` : '';
